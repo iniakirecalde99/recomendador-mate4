@@ -42,6 +42,24 @@ class SistemaSingularError(ErrorFactorizacion):
         self.n_observados = n_observados
 
 
+class DivergenciaError(ErrorFactorizacion):
+    """El descenso de gradiente divergió: f dejó de ser finito (inf o NaN).
+
+    Args:
+        iteracion: número de iteración en la que se detectó (1-indexada).
+        eta: la tasa de aprendizaje usada, probablemente demasiado grande.
+    """
+
+    def __init__(self, iteracion: int, eta: float) -> None:
+        mensaje = (
+            f"el descenso de gradiente diverge en la iteración {iteracion}: "
+            f"f dejó de ser finito (inf o NaN) con eta={eta:.4g}; probá con un eta más chico."
+        )
+        super().__init__(mensaje)
+        self.iteracion = iteracion
+        self.eta = eta
+
+
 class ErrorDatosInsuficientes(ErrorFactorizacion):
     """El filtro por mínimo k dejó una matriz sin filas o sin columnas.
 

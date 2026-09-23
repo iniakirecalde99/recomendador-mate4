@@ -1,7 +1,9 @@
 """Gradiente de la SCE y GD matricial (informe 3.4/6)."""
 
 import numpy as np
+import pytest
 
+from src.errores import DivergenciaError
 from src.gradiente import entrenar_gd, gradiente_sce
 from src.modelo import sce
 
@@ -63,3 +65,19 @@ def test_iteracion_gd_es_simultanea_contra_referencia(matriz_pequena_aleatoria, 
     _, grad_V_alternado = gradiente_sce(R, M, U_esperado, V0)
     V_alternado = V0 - eta * grad_V_alternado
     assert not np.allclose(resultado.V, V_alternado)
+
+
+def test_entrenar_gd_lanza_divergencia_si_f_no_es_finito(matriz_pequena_aleatoria, generador_fijo):
+    R, M = matriz_pequena_aleatoria
+    m, n = R.shape
+    k = 2
+    U0 = generador_fijo.uniform(0.0, 1.0, size=(m, k))
+    V0 = generador_fijo.uniform(0.0, 1.0, size=(n, k))
+
+    # eta enorme: tiene que divergir (f no finito) en pocas iteraciones, no
+    # correr hasta max_iter.
+    with pytest.raises(DivergenciaError) as exc_info:
+        entrenar_gd(R, M, U0, V0, eta=1e10, epsilon=1e-8, max_iter=1000)
+
+    assert exc_info.value.iteracion < 5
+    assert exc_info.value.eta == 1e10

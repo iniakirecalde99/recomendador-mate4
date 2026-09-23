@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from src.errores import DivergenciaError
 from src.modelo import ResultadoEntrenamiento, predecir, sce
 
 LOGGER = logging.getLogger(__name__)
@@ -124,11 +125,17 @@ def entrenar_gd(
     motivo_corte = "max_iter"
     while n_iteraciones < max_iter:
         grad_U, grad_V = gradiente_sce(R, M, U, V)
+        # Informe 6: x(t+1) = x(t) - eta * grad f(x(t)), U y V con el
+        # gradiente de la iteración t
         U = U - eta * grad_U
         V = V - eta * grad_V
 
         f_siguiente = sce(R, M, U, V)
         n_iteraciones += 1
+
+        if not np.isfinite(f_siguiente):
+            raise DivergenciaError(iteracion=n_iteraciones, eta=eta)
+
         historial_f.append(f_siguiente)
 
         LOGGER.info("GD iteración %d: f=%.6g", n_iteraciones, f_siguiente)
