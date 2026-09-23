@@ -1,12 +1,13 @@
-"""Descenso de gradiente: versión genérica y gradiente de la SCE (informe 3.4 y 6)."""
+"""Descenso de gradiente: versión genérica y descenso completo sobre la factorización (informe 3.4 y 6)."""
 
 import logging
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
 
-from src.modelo import predecir
+from src.modelo import ResultadoEntrenamiento, predecir, sce
 
 LOGGER = logging.getLogger(__name__)
 
@@ -94,3 +95,68 @@ def gradiente_sce(
     grad_U = -2 * E @ V
     grad_V = -2 * E.T @ U
     return grad_U, grad_V
+
+
+def entrenar_gd(
+    R: np.ndarray,
+    M: np.ndarray,
+    U0: np.ndarray,
+    V0: np.ndarray,
+    eta: float,
+    epsilon: float,
+    max_iter: int,
+) -> ResultadoEntrenamiento:
+    """Descenso de gradiente completo sobre la factorización (informe 3.4 y 6).
+
+    En cada iteración calcula `gradiente_sce` con (U, V) de la iteración t y
+    actualiza ambos simultáneamente: U ← U − eta·∇_U f, V ← V − eta·∇_V f
+    (nunca actualizar U y recién ahí calcular el
+    gradiente de V con la U nueva, eso lo convertiría en un método
+    alternado). Usa `modelo.sce` para el criterio de corte.
+    """
+    inicio = time.perf_counter()
+
+    U, V = U0, V0
+    f_actual = sce(R, M, U, V)
+    historial_f = [f_actual]
+
+    n_iteraciones = 0
+    motivo_corte = "max_iter"
+    while n_iteraciones < max_iter:
+        grad_U, grad_V = gradiente_sce(R, M, U, V)
+        U = U - eta * grad_U
+        V = V - eta * grad_V
+
+        f_siguiente = sce(R, M, U, V)
+        n_iteraciones += 1
+        historial_f.append(f_siguiente)
+
+        LOGGER.info("GD iteración %d: f=%.6g", n_iteraciones, f_siguiente)
+
+        if f_siguiente > f_actual:
+            LOGGER.warning(
+                "entrenar_gd: f aumentó en la iteración %d (%.6g -> %.6g); "
+                "eta=%.4g podría ser demasiado grande",
+                n_iteraciones, f_actual, f_siguiente, eta,
+            )
+
+        if abs(f_siguiente - f_actual) < epsilon:
+            motivo_corte = "tolerancia"
+            f_actual = f_siguiente
+            break
+
+        f_actual = f_siguiente
+
+    if motivo_corte == "max_iter":
+        LOGGER.warning(
+            "entrenar_gd: se alcanzó max_iter=%d sin cortar por tolerancia", max_iter
+        )
+
+    return ResultadoEntrenamiento(
+        U=U,
+        V=V,
+        historial_f=historial_f,
+        n_iteraciones=n_iteraciones,
+        tiempo_segundos=time.perf_counter() - inicio,
+        motivo_corte=motivo_corte,
+    )
