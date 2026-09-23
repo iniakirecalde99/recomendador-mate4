@@ -60,6 +60,24 @@ class DivergenciaError(ErrorFactorizacion):
         self.eta = eta
 
 
+class UsuarioNoEncontradoError(ErrorFactorizacion):
+    """El usuario pedido (id crudo de MovieLens) no está en el conjunto filtrado.
+
+    Args:
+        usuario_id: el id crudo de usuario que se pidió (por ejemplo, con
+            `--usuario` en la demo).
+    """
+
+    def __init__(self, usuario_id: int) -> None:
+        mensaje = (
+            f"el usuario {usuario_id} no está en el conjunto filtrado (no existe "
+            "en MovieLens, o el filtro por --k lo eliminó): probá con otro "
+            "--usuario, o con un --k más chico."
+        )
+        super().__init__(mensaje)
+        self.usuario_id = usuario_id
+
+
 class ErrorDatosInsuficientes(ErrorFactorizacion):
     """El filtro por mínimo k dejó una matriz sin filas o sin columnas.
 
