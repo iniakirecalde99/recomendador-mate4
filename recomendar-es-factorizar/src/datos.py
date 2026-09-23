@@ -151,3 +151,40 @@ def filtrar_por_minimo(datos: ConjuntoCalificaciones, k: int) -> ConjuntoCalific
         id_usuario_a_indice=nuevo_id_usuario_a_indice,
         id_pelicula_a_indice=nuevo_id_pelicula_a_indice,
     )
+
+
+def cargar_titulos(ruta_u_item: Path) -> dict[int, str]:
+    """Carga `u.item` y devuelve el mapeo id de película crudo → título.
+
+    El archivo está codificado en latin-1 y tiene los campos separados por
+    `|`; el id de película es el primero y el título el segundo.
+    """
+    titulos_por_id: dict[int, str] = {}
+    with Path(ruta_u_item).open(encoding="latin-1") as archivo:
+        for linea in archivo:
+            linea = linea.strip()
+            if not linea:
+                continue
+            campos = linea.split("|")
+            id_pelicula = int(campos[0])
+            titulo = campos[1]
+            titulos_por_id[id_pelicula] = titulo
+
+    LOGGER.info("cargados %d títulos desde %s", len(titulos_por_id), ruta_u_item)
+
+    return titulos_por_id
+
+
+def construir_indice_a_titulo(
+    id_pelicula_a_indice: dict[int, int], titulos_por_id: dict[int, str]
+) -> dict[int, str]:
+    """Invierte `id_pelicula_a_indice` y lo combina con `titulos_por_id`.
+
+    Devuelve el mapeo índice de columna de V → título, para las películas que
+    aparecen en `id_pelicula_a_indice` (típicamente, las que sobrevivieron al
+    filtro por mínimo).
+    """
+    return {
+        indice: titulos_por_id[id_pelicula]
+        for id_pelicula, indice in id_pelicula_a_indice.items()
+    }

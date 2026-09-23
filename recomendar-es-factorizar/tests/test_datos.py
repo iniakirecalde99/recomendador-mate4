@@ -1,11 +1,17 @@
-"""Carga y filtro por mínimo de MovieLens."""
+"""Carga, filtro por mínimo y títulos de MovieLens."""
 
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-from src.datos import ConjuntoCalificaciones, cargar_calificaciones, filtrar_por_minimo
+from src.datos import (
+    ConjuntoCalificaciones,
+    cargar_calificaciones,
+    cargar_titulos,
+    construir_indice_a_titulo,
+    filtrar_por_minimo,
+)
 from src.errores import ErrorDatosInsuficientes
 
 RUTA_MOVIELENS = Path(__file__).resolve().parent.parent / "data" / "ml-100k"
@@ -97,3 +103,28 @@ def test_filtrar_por_minimo_lanza_error_si_vacia_la_matriz():
 
     with pytest.raises(ErrorDatosInsuficientes):
         filtrar_por_minimo(datos, k=2)
+
+
+def test_cargar_titulos_y_construir_indice_a_titulo(tmp_path):
+    contenido = (
+        "1|Toy Story (1995)|01-Jan-1995||url1|0|0|0|1|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
+        "2|GoldenEye (1995)|01-Jan-1995||url2|0|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
+        "3|Am\xe9lie (2001)|01-Jan-2001||url3|0|0|0|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
+    )
+    ruta_archivo = tmp_path / "u.item"
+    ruta_archivo.write_bytes(contenido.encode("latin-1"))
+
+    titulos_por_id = cargar_titulos(ruta_archivo)
+
+    assert titulos_por_id == {
+        1: "Toy Story (1995)",
+        2: "GoldenEye (1995)",
+        3: "Am\xe9lie (2001)",
+    }
+
+    # id_pelicula_a_indice típicamente sale de cargar_calificaciones/filtrar_por_minimo:
+    # solo cubre las películas que sobrevivieron al filtro (acá, 1 y 3; la 2 quedó afuera).
+    id_pelicula_a_indice = {1: 0, 3: 1}
+    indice_a_titulo = construir_indice_a_titulo(id_pelicula_a_indice, titulos_por_id)
+
+    assert indice_a_titulo == {0: "Toy Story (1995)", 1: "Am\xe9lie (2001)"}
