@@ -39,6 +39,18 @@ def matriz_ejemplo_informe() -> tuple[np.ndarray, np.ndarray]:
     return R, M
 
 
+@pytest.fixture
+def matriz_pequena_aleatoria() -> tuple[np.ndarray, np.ndarray]:
+    """Matriz R, M chica y aleatoria (semilla fija) para el chequeo de
+    gradiente por diferencias finitas."""
+    generador = np.random.default_rng(7)
+    m, n = 4, 3
+    R = generador.uniform(1.0, 5.0, size=(m, n))
+    M = generador.uniform(size=(m, n)) < 0.7
+    R[~M] = np.nan
+    return R, M
+
+
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Saltea con motivo los tests marcados `movielens` si falta el dataset real."""
     if RUTA_MOVIELENS.exists():

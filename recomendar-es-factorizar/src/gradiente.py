@@ -1,10 +1,12 @@
-"""Descenso de gradiente genérico (informe 3.4)."""
+"""Descenso de gradiente: versión genérica y gradiente de la SCE (informe 3.4 y 6)."""
 
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
+
+from src.modelo import predecir
 
 LOGGER = logging.getLogger(__name__)
 
@@ -76,3 +78,19 @@ def descenso_gradiente(
         n_iteraciones=n_iteraciones,
         motivo_corte=motivo_corte,
     )
+
+
+def gradiente_sce(
+    R: np.ndarray, M: np.ndarray, U: np.ndarray, V: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """Calcula ∇_U f y ∇_V f de la SCE, sin factor 1/2 (informe 3.4/6).
+
+    Con E = M ⊙ (R − U·Vᵀ) (error solo sobre Ω, cero fuera):
+    ∇_U f = −2·E·V, ∇_V f = −2·Eᵀ·U, ambos evaluados en el mismo (U, V)
+    recibido.
+    """
+    # Informe 3.4/6: gradientes de la SCE respecto de U y de V.
+    E = np.where(M, R - predecir(U, V), 0.0)
+    grad_U = -2 * E @ V
+    grad_V = -2 * E.T @ U
+    return grad_U, grad_V
