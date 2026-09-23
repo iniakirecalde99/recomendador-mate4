@@ -1,10 +1,12 @@
 """ALS: mínimos cuadrados alternados (informe 3.5 y 5)."""
 
 import logging
+import time
 
 import numpy as np
 
 from src.errores import SistemaSingularError
+from src.modelo import ResultadoEntrenamiento, sce
 
 LOGGER = logging.getLogger(__name__)
 
@@ -40,3 +42,57 @@ def resolver_factor(R: np.ndarray, M: np.ndarray, F: np.ndarray) -> np.ndarray:
             raise SistemaSingularError(fila=i, n_observados=len(columnas_obs)) from error
 
     return factor_nuevo
+
+
+def entrenar_als(
+    R: np.ndarray,
+    M: np.ndarray,
+    U0: np.ndarray,
+    V0: np.ndarray,
+    epsilon: float,
+    max_iter: int,
+) -> ResultadoEntrenamiento:
+    """Ejecuta ALS alternando el paso de U y V (informe 3.5 y 5).
+
+    Parte de U0, V0 y en cada iteración alterna `resolver_factor(R, M, V)` y
+    `resolver_factor(R.T, M.T, U)`, usando `modelo.sce` para calcular f,
+    hasta que |f(t+1) − f(t)| < epsilon o se alcanza `max_iter`.
+    """
+    inicio = time.perf_counter()
+
+    U, V = U0, V0
+    f_actual = sce(R, M, U, V)
+    historial_f = [f_actual]
+
+    n_iteraciones = 0
+    motivo_corte = "max_iter"
+    while n_iteraciones < max_iter:
+        # Informe 3.5/5: alternar el paso de U y el paso de V (misma función,
+        # llamada con R.T y M.T para V).
+        U = resolver_factor(R, M, V)
+        V = resolver_factor(R.T, M.T, U)
+
+        f_siguiente = sce(R, M, U, V)
+        n_iteraciones += 1
+        historial_f.append(f_siguiente)
+
+        LOGGER.info("ALS iteración %d: f=%.6g", n_iteraciones, f_siguiente)
+
+        if abs(f_siguiente - f_actual) < epsilon:
+            motivo_corte = "tolerancia"
+            f_actual = f_siguiente
+            break
+
+        f_actual = f_siguiente
+
+    if motivo_corte == "max_iter":
+        LOGGER.warning("ALS: se alcanzó max_iter=%d sin cortar por tolerancia", max_iter)
+
+    return ResultadoEntrenamiento(
+        U=U,
+        V=V,
+        historial_f=historial_f,
+        n_iteraciones=n_iteraciones,
+        tiempo_segundos=time.perf_counter() - inicio,
+        motivo_corte=motivo_corte,
+    )
