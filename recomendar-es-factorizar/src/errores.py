@@ -23,6 +23,25 @@ class ErrorDescargaDataset(ErrorFactorizacion):
         self.causa = causa
 
 
+class SistemaSingularError(ErrorFactorizacion):
+    """Las ecuaciones normales de una fila de ALS resultaron singulares.
+
+    Args:
+        fila: índice de la fila que se intentaba resolver.
+        n_observados: cantidad de columnas observadas usadas para armar el
+            sistema (típicamente insuficiente o colineal para el k pedido).
+    """
+
+    def __init__(self, fila: int, n_observados: int) -> None:
+        mensaje = (
+            f"las ecuaciones normales de la fila {fila} son singulares: "
+            f"solo hay {n_observados} observaciones para resolver el sistema."
+        )
+        super().__init__(mensaje)
+        self.fila = fila
+        self.n_observados = n_observados
+
+
 class ErrorDatosInsuficientes(ErrorFactorizacion):
     """El filtro por mínimo k dejó una matriz sin filas o sin columnas.
 
