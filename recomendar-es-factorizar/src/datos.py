@@ -188,3 +188,32 @@ def construir_indice_a_titulo(
         indice: titulos_por_id[id_pelicula]
         for id_pelicula, indice in id_pelicula_a_indice.items()
     }
+
+
+@dataclass
+class DatosPreparados:
+    """Salida de `preparar_datos_movielens`: único punto de entrada de datos para `demo.py`.
+
+    Atributos:
+        calificaciones: `ConjuntoCalificaciones` ya filtrado por k.
+        titulos_por_indice: índice de columna de V → título.
+    """
+
+    calificaciones: ConjuntoCalificaciones
+    titulos_por_indice: dict[int, str]
+
+
+def preparar_datos_movielens(ruta_u_data: Path, ruta_u_item: Path, k: int) -> DatosPreparados:
+    """Orquesta carga, filtro y títulos en un único punto de entrada.
+
+    Encadena `cargar_calificaciones`, `filtrar_por_minimo`, `cargar_titulos`
+    y `construir_indice_a_titulo`.
+    """
+    datos = cargar_calificaciones(ruta_u_data)
+    datos_filtrados = filtrar_por_minimo(datos, k)
+    titulos_por_id = cargar_titulos(ruta_u_item)
+    titulos_por_indice = construir_indice_a_titulo(
+        datos_filtrados.id_pelicula_a_indice, titulos_por_id
+    )
+
+    return DatosPreparados(calificaciones=datos_filtrados, titulos_por_indice=titulos_por_indice)

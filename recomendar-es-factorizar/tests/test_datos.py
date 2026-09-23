@@ -1,4 +1,4 @@
-"""Carga, filtro por mínimo y títulos de MovieLens."""
+"""Carga, filtro, títulos y orquestación de MovieLens."""
 
 from pathlib import Path
 
@@ -11,6 +11,7 @@ from src.datos import (
     cargar_titulos,
     construir_indice_a_titulo,
     filtrar_por_minimo,
+    preparar_datos_movielens,
 )
 from src.errores import ErrorDatosInsuficientes
 
@@ -128,3 +129,41 @@ def test_cargar_titulos_y_construir_indice_a_titulo(tmp_path):
     indice_a_titulo = construir_indice_a_titulo(id_pelicula_a_indice, titulos_por_id)
 
     assert indice_a_titulo == {0: "Toy Story (1995)", 1: "Am\xe9lie (2001)"}
+
+
+def test_preparar_datos_movielens_integra_carga_filtro_y_titulos(tmp_path):
+    # k=2: la película 3 tiene una sola calificación (de usuario 1) y el
+    # filtro la elimina; usuarios 1 y 2 quedan con 2 calificaciones cada uno
+    # (películas 1 y 2), así que ninguno se elimina en una pasada posterior.
+    contenido_u_data = (
+        "1\t1\t5\t100\n"
+        "1\t2\t4\t101\n"
+        "1\t3\t3\t102\n"
+        "2\t1\t3\t103\n"
+        "2\t2\t2\t104\n"
+    )
+    ruta_u_data = tmp_path / "u.data"
+    ruta_u_data.write_text(contenido_u_data, encoding="utf-8")
+
+    contenido_u_item = (
+        "1|Toy Story (1995)|01-Jan-1995||url1|0|0|0|1|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
+        "2|GoldenEye (1995)|01-Jan-1995||url2|0|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
+        "3|Nixon (1995)|01-Jan-1995||url3|0|0|0|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
+    )
+    ruta_u_item = tmp_path / "u.item"
+    ruta_u_item.write_bytes(contenido_u_item.encode("latin-1"))
+
+    datos = preparar_datos_movielens(ruta_u_data, ruta_u_item, k=2)
+
+    # Película 3 filtrada; usuarios 1 y 2, y películas 1 y 2 sobreviven.
+    assert set(datos.calificaciones.id_usuario_a_indice) == {1, 2}
+    assert set(datos.calificaciones.id_pelicula_a_indice) == {1, 2}
+    assert datos.calificaciones.R.shape == (2, 2)
+
+    # Los títulos están indexados por el índice FINAL (post-filtro), no por
+    # el id crudo; la película 3 (filtrada) no debe aparecer.
+    idx_pelicula1 = datos.calificaciones.id_pelicula_a_indice[1]
+    idx_pelicula2 = datos.calificaciones.id_pelicula_a_indice[2]
+    assert datos.titulos_por_indice[idx_pelicula1] == "Toy Story (1995)"
+    assert datos.titulos_por_indice[idx_pelicula2] == "GoldenEye (1995)"
+    assert len(datos.titulos_por_indice) == 2
