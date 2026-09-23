@@ -21,3 +21,20 @@ class ErrorDescargaDataset(ErrorFactorizacion):
         super().__init__(mensaje)
         self.url = url
         self.causa = causa
+
+
+class ErrorDatosInsuficientes(ErrorFactorizacion):
+    """El filtro por mínimo k dejó una matriz sin filas o sin columnas.
+
+    Args:
+        k: el umbral mínimo de calificaciones usado en el filtro.
+    """
+
+    def __init__(self, k: int) -> None:
+        mensaje = (
+            f"el filtro por mínimo k={k} calificaciones eliminó todas las "
+            "filas o todas las columnas: no queda ningún usuario o película "
+            "con al menos k calificaciones."
+        )
+        super().__init__(mensaje)
+        self.k = k

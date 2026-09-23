@@ -1,11 +1,12 @@
-"""Carga de calificaciones crudas."""
+"""Carga y filtro por mínimo de MovieLens."""
 
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-from src.datos import cargar_calificaciones
+from src.datos import ConjuntoCalificaciones, cargar_calificaciones, filtrar_por_minimo
+from src.errores import ErrorDatosInsuficientes
 
 RUTA_MOVIELENS = Path(__file__).resolve().parent.parent / "data" / "ml-100k"
 
@@ -41,3 +42,58 @@ def test_cargar_calificaciones_dimensiones_y_mascara():
 
     assert resultado.R.shape == (943, 1682)
     assert resultado.M.sum() == 100_000
+
+
+def test_filtrar_por_minimo_todas_las_filas_y_columnas_tienen_al_menos_k():
+    # Cascada de tres pasadas para k=2 (usuarios U1,U2,U3; películas M1..M5):
+    #   pasada 1: M4 tiene 1 calificación (solo U3) -> se elimina.
+    #   pasada 2: sin M4, U3 queda con 1 calificación (solo M5) -> se elimina.
+    #   pasada 3: sin U3, M5 queda con 1 calificación (solo U1) -> se elimina.
+    #   pasada 4: {U1,U2} x {M1,M2,M3} ya no tiene nada para eliminar.
+    # Cualquier filtro de una sola pasada (en cualquier orden filas/columnas)
+    # se queda a mitad de camino y no llega a este resultado.
+    R = np.full((3, 5), np.nan)
+    M = np.zeros((3, 5), dtype=bool)
+    calificaciones = {
+        (0, 0): 5.0, (0, 1): 4.0, (0, 2): 3.0, (0, 4): 2.0,  # U1: M1,M2,M3,M5
+        (1, 0): 1.0, (1, 1): 2.0, (1, 2): 3.0,  # U2: M1,M2,M3
+        (2, 3): 4.0, (2, 4): 5.0,  # U3: M4,M5
+    }
+    for (i, j), calificacion in calificaciones.items():
+        R[i, j] = calificacion
+        M[i, j] = True
+
+    datos = ConjuntoCalificaciones(
+        R=R,
+        M=M,
+        id_usuario_a_indice={1: 0, 2: 1, 3: 2},
+        id_pelicula_a_indice={1: 0, 2: 1, 3: 2, 4: 3, 5: 4},
+    )
+
+    resultado = filtrar_por_minimo(datos, k=2)
+
+    assert resultado.id_usuario_a_indice == {1: 0, 2: 1}
+    assert resultado.id_pelicula_a_indice == {1: 0, 2: 1, 3: 2}
+    assert resultado.R.shape == (2, 3)
+    assert (resultado.M.sum(axis=0) >= 2).all()
+    assert (resultado.M.sum(axis=1) >= 2).all()
+
+    # al menos dos calificaciones concretas, en la posición que indica el
+    # mapeo NUEVO que devuelve filtrar_por_minimo (no el viejo de datos).
+    idx_u1 = resultado.id_usuario_a_indice[1]
+    idx_u2 = resultado.id_usuario_a_indice[2]
+    idx_m2 = resultado.id_pelicula_a_indice[2]
+    idx_m3 = resultado.id_pelicula_a_indice[3]
+    assert resultado.R[idx_u1, idx_m3] == 3.0  # U1 - M3
+    assert resultado.R[idx_u2, idx_m2] == 2.0  # U2 - M2
+
+
+def test_filtrar_por_minimo_lanza_error_si_vacia_la_matriz():
+    R = np.array([[5.0]])
+    M = np.array([[True]])
+    datos = ConjuntoCalificaciones(
+        R=R, M=M, id_usuario_a_indice={1: 0}, id_pelicula_a_indice={1: 0},
+    )
+
+    with pytest.raises(ErrorDatosInsuficientes):
+        filtrar_por_minimo(datos, k=2)
