@@ -13,7 +13,7 @@ from src.datos import (
     filtrar_por_minimo,
     preparar_datos_movielens,
 )
-from src.errores import ErrorDatosInsuficientes
+from src.errores import ErrorDatosInsuficientes, UmbralInsuficienteError
 
 RUTA_MOVIELENS = Path(__file__).resolve().parent.parent / "data" / "ml-100k"
 
@@ -77,7 +77,7 @@ def test_filtrar_por_minimo_todas_las_filas_y_columnas_tienen_al_menos_k():
         id_pelicula_a_indice={1: 0, 2: 1, 3: 2, 4: 3, 5: 4},
     )
 
-    resultado = filtrar_por_minimo(datos, k=2)
+    resultado = filtrar_por_minimo(datos, umbral=2, k=2)
 
     assert resultado.id_usuario_a_indice == {1: 0, 2: 1}
     assert resultado.id_pelicula_a_indice == {1: 0, 2: 1, 3: 2}
@@ -103,7 +103,21 @@ def test_filtrar_por_minimo_lanza_error_si_vacia_la_matriz():
     )
 
     with pytest.raises(ErrorDatosInsuficientes):
-        filtrar_por_minimo(datos, k=2)
+        filtrar_por_minimo(datos, umbral=2, k=2)
+
+
+def test_filtrar_por_minimo_lanza_umbral_insuficiente_si_umbral_es_menor_que_k():
+    R = np.array([[5.0, 4.0], [3.0, 2.0]])
+    M = np.array([[True, True], [True, True]])
+    datos = ConjuntoCalificaciones(
+        R=R, M=M, id_usuario_a_indice={1: 0, 2: 1}, id_pelicula_a_indice={1: 0, 2: 1},
+    )
+
+    with pytest.raises(UmbralInsuficienteError) as exc_info:
+        filtrar_por_minimo(datos, umbral=1, k=2)
+
+    assert exc_info.value.umbral == 1
+    assert exc_info.value.k == 2
 
 
 def test_cargar_titulos_y_construir_indice_a_titulo(tmp_path):
@@ -153,7 +167,7 @@ def test_preparar_datos_movielens_integra_carga_filtro_y_titulos(tmp_path):
     ruta_u_item = tmp_path / "u.item"
     ruta_u_item.write_bytes(contenido_u_item.encode("latin-1"))
 
-    datos = preparar_datos_movielens(ruta_u_data, ruta_u_item, k=2)
+    datos = preparar_datos_movielens(ruta_u_data, ruta_u_item, umbral=2, k=2)
 
     # Película 3 filtrada; usuarios 1 y 2, y películas 1 y 2 sobreviven.
     assert set(datos.calificaciones.id_usuario_a_indice) == {1, 2}

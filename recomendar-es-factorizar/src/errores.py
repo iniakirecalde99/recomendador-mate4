@@ -71,25 +71,51 @@ class UsuarioNoEncontradoError(ErrorFactorizacion):
     def __init__(self, usuario_id: int) -> None:
         mensaje = (
             f"el usuario {usuario_id} no está en el conjunto filtrado (no existe "
-            "en MovieLens, o el filtro por --k lo eliminó): probá con otro "
-            "--usuario, o con un --k más chico."
+            "en MovieLens, o el filtro por --umbral lo eliminó): probá con otro "
+            "--usuario, o con un --umbral más chico."
         )
         super().__init__(mensaje)
         self.usuario_id = usuario_id
 
 
-class ErrorDatosInsuficientes(ErrorFactorizacion):
-    """El filtro por mínimo k dejó una matriz sin filas o sin columnas.
+class UmbralInsuficienteError(ErrorFactorizacion):
+    """El umbral del filtro es menor que k.
+
+    Tener al menos k observaciones por fila es necesario para que el
+    sistema k×k de ALS tenga solución única, pero no alcanza para que esa
+    solución sea razonable (la calibración con MovieLens real mostró
+    `SistemaSingularError` y predicciones fuera de Ω con magnitud absurda
+    incluso con umbral == k). Por eso `filtrar_por_minimo` exige
+    umbral >= k.
 
     Args:
-        k: el umbral mínimo de calificaciones usado en el filtro.
+        umbral: el umbral de calificaciones mínimas pedido para el filtro.
+        k: la dimensión latente pedida.
     """
 
-    def __init__(self, k: int) -> None:
+    def __init__(self, umbral: int, k: int) -> None:
         mensaje = (
-            f"el filtro por mínimo k={k} calificaciones eliminó todas las "
-            "filas o todas las columnas: no queda ningún usuario o película "
-            "con al menos k calificaciones."
+            f"el umbral del filtro ({umbral}) es menor que k ({k}): ALS necesita "
+            f"al menos k={k} observaciones por fila para que el sistema k×k tenga "
+            "solución única. Probá con un --umbral >= --k."
         )
         super().__init__(mensaje)
+        self.umbral = umbral
         self.k = k
+
+
+class ErrorDatosInsuficientes(ErrorFactorizacion):
+    """El filtro por umbral mínimo dejó una matriz sin filas o sin columnas.
+
+    Args:
+        umbral: el umbral mínimo de calificaciones usado en el filtro.
+    """
+
+    def __init__(self, umbral: int) -> None:
+        mensaje = (
+            f"el filtro por umbral mínimo={umbral} calificaciones eliminó todas "
+            "las filas o todas las columnas: no queda ningún usuario o película "
+            "con al menos ese umbral de calificaciones."
+        )
+        super().__init__(mensaje)
+        self.umbral = umbral

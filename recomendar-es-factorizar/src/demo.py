@@ -31,6 +31,7 @@ def construir_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--datos", type=Path, default=config.RUTA_DATOS_DEFECTO)
     parser.add_argument("--grafico", type=Path, default=config.RUTA_GRAFICO_DEFECTO)
+    parser.add_argument("--umbral", type=int, default=config.UMBRAL_DEFECTO)
     parser.add_argument("--k", type=int, default=config.K_DEFECTO)
     parser.add_argument("--eta", type=float, default=config.ETA_DEFECTO)
     parser.add_argument("--epsilon", type=float, default=config.EPSILON_DEFECTO)
@@ -80,13 +81,15 @@ def main(argv: list[str] | None = None) -> None:
 
     args = construir_parser().parse_args(argv)
 
-    datos = preparar_datos_movielens(args.datos / "u.data", args.datos / "u.item", args.k)
+    datos = preparar_datos_movielens(
+        args.datos / "u.data", args.datos / "u.item", args.umbral, args.k
+    )
     R = datos.calificaciones.R
     M = datos.calificaciones.M
     m, n = R.shape
     print(
-        f"MovieLens filtrado (k={args.k}): {m} usuarios, {n} películas, "
-        f"{int(M.sum())} calificaciones."
+        f"MovieLens filtrado (umbral={args.umbral}, k={args.k}): {m} usuarios, "
+        f"{n} películas, {int(M.sum())} calificaciones."
     )
 
     indice_usuario = _traducir_usuario(datos.calificaciones.id_usuario_a_indice, args.usuario)

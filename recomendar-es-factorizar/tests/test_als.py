@@ -1,5 +1,7 @@
 """resolver_factor y entrenar_als (informe 3.5)."""
 
+import logging
+
 import numpy as np
 import pytest
 
@@ -88,3 +90,34 @@ def test_als_ejemplo_4x5_primera_iteracion_coincide_con_informe():
 
     Pendiente hasta fijar la V0 exacta que usa ese ejemplo.
     """
+
+
+def test_entrenar_als_loguea_debug_por_iteracion_e_info_cada_100_y_resumen(
+    matriz_ejemplo_informe, generador_fijo, caplog
+):
+    R, M = matriz_ejemplo_informe
+    U0, V0 = inicializar_factores(m=4, n=5, k=2, escala=1.0, generador=generador_fijo)
+
+    # epsilon=0.0 nunca corta por tolerancia (abs(diff) < 0.0 nunca es True):
+    # fuerza exactamente max_iter iteraciones, para poder contar los logs.
+    with caplog.at_level(logging.DEBUG, logger="src.als"):
+        resultado = entrenar_als(R, M, U0, V0, epsilon=0.0, max_iter=250)
+
+    assert resultado.n_iteraciones == 250
+
+    mensajes_debug = [
+        r for r in caplog.records
+        if r.levelno == logging.DEBUG and "ALS iteración" in r.getMessage()
+    ]
+    mensajes_info_iteracion = [
+        r for r in caplog.records
+        if r.levelno == logging.INFO and "ALS iteración" in r.getMessage()
+    ]
+    mensajes_resumen = [
+        r for r in caplog.records
+        if r.levelno == logging.INFO and "terminó" in r.getMessage()
+    ]
+
+    assert len(mensajes_debug) == 250
+    assert len(mensajes_info_iteracion) == 2  # iteraciones 100 y 200 (250 no es múltiplo)
+    assert len(mensajes_resumen) == 1

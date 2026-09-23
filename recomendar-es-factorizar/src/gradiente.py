@@ -138,7 +138,9 @@ def entrenar_gd(
 
         historial_f.append(f_siguiente)
 
-        LOGGER.info("GD iteración %d: f=%.6g", n_iteraciones, f_siguiente)
+        LOGGER.debug("GD iteración %d: f=%.6g", n_iteraciones, f_siguiente)
+        if n_iteraciones % 100 == 0:
+            LOGGER.info("GD iteración %d: f=%.6g", n_iteraciones, f_siguiente)
 
         if f_siguiente > f_actual:
             LOGGER.warning(
@@ -158,6 +160,11 @@ def entrenar_gd(
         LOGGER.warning(
             "entrenar_gd: se alcanzó max_iter=%d sin cortar por tolerancia", max_iter
         )
+
+    LOGGER.info(
+        "GD terminó: %d iteraciones (motivo=%s), f final=%.6g",
+        n_iteraciones, motivo_corte, historial_f[-1],
+    )
 
     return ResultadoEntrenamiento(
         U=U,

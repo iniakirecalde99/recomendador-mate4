@@ -76,7 +76,9 @@ def entrenar_als(
         n_iteraciones += 1
         historial_f.append(f_siguiente)
 
-        LOGGER.info("ALS iteración %d: f=%.6g", n_iteraciones, f_siguiente)
+        LOGGER.debug("ALS iteración %d: f=%.6g", n_iteraciones, f_siguiente)
+        if n_iteraciones % 100 == 0:
+            LOGGER.info("ALS iteración %d: f=%.6g", n_iteraciones, f_siguiente)
 
         if abs(f_siguiente - f_actual) < epsilon:
             motivo_corte = "tolerancia"
@@ -87,6 +89,11 @@ def entrenar_als(
 
     if motivo_corte == "max_iter":
         LOGGER.warning("ALS: se alcanzó max_iter=%d sin cortar por tolerancia", max_iter)
+
+    LOGGER.info(
+        "ALS terminó: %d iteraciones (motivo=%s), f final=%.6g",
+        n_iteraciones, motivo_corte, historial_f[-1],
+    )
 
     return ResultadoEntrenamiento(
         U=U,

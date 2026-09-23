@@ -1,11 +1,13 @@
 """Gradiente de la SCE y GD matricial (informe 3.4/6)."""
 
+import logging
+
 import numpy as np
 import pytest
 
 from src.errores import DivergenciaError
 from src.gradiente import entrenar_gd, gradiente_sce
-from src.modelo import sce
+from src.modelo import inicializar_factores, sce
 
 
 def _gradiente_numerico(f, X, h=1e-6):
@@ -81,3 +83,35 @@ def test_entrenar_gd_lanza_divergencia_si_f_no_es_finito(matriz_pequena_aleatori
 
     assert exc_info.value.iteracion < 5
     assert exc_info.value.eta == 1e10
+
+
+def test_entrenar_gd_loguea_debug_por_iteracion_e_info_cada_100_y_resumen(
+    matriz_ejemplo_informe, generador_fijo, caplog
+):
+    R, M = matriz_ejemplo_informe
+    U0, V0 = inicializar_factores(m=4, n=5, k=2, escala=1.0, generador=generador_fijo)
+
+    # epsilon=0.0 nunca corta por tolerancia: fuerza exactamente max_iter
+    # iteraciones, para poder contar los logs. eta=0.01 ya se usó en otros
+    # tests sobre esta misma matriz sin diverger.
+    with caplog.at_level(logging.DEBUG, logger="src.gradiente"):
+        resultado = entrenar_gd(R, M, U0, V0, eta=0.01, epsilon=0.0, max_iter=250)
+
+    assert resultado.n_iteraciones == 250
+
+    mensajes_debug = [
+        r for r in caplog.records
+        if r.levelno == logging.DEBUG and "GD iteración" in r.getMessage()
+    ]
+    mensajes_info_iteracion = [
+        r for r in caplog.records
+        if r.levelno == logging.INFO and "GD iteración" in r.getMessage()
+    ]
+    mensajes_resumen = [
+        r for r in caplog.records
+        if r.levelno == logging.INFO and "terminó" in r.getMessage()
+    ]
+
+    assert len(mensajes_debug) == 250
+    assert len(mensajes_info_iteracion) == 2
+    assert len(mensajes_resumen) == 1

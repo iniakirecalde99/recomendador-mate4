@@ -11,6 +11,7 @@ def test_construir_parser_expone_los_argumentos_esperados_y_defaults():
     args = parser.parse_args([])
 
     assert not hasattr(args, "metodo")  # sin --metodo: la demo siempre corre ambos métodos
+    assert args.umbral == config.UMBRAL_DEFECTO
     assert args.k == config.K_DEFECTO
     assert args.eta == config.ETA_DEFECTO
     assert args.epsilon == config.EPSILON_DEFECTO
@@ -89,6 +90,7 @@ def test_main_corre_extremo_a_extremo_sobre_dataset_chico_sin_lanzar_excepciones
         [
             "--datos", str(tmp_path),
             "--grafico", str(ruta_grafico),
+            "--umbral", "2",
             "--k", "2",
             "--eta", "0.001",
             "--epsilon", "1e-4",
@@ -114,6 +116,7 @@ def test_main_propaga_usuarionoencontradoerror_si_el_usuario_no_existe(tmp_path)
             [
                 "--datos", str(tmp_path),
                 "--grafico", str(tmp_path / "convergencia.png"),
+                "--umbral", "2",
                 "--k", "2",
                 "--eta", "0.001",
                 "--epsilon", "1e-4",
@@ -132,6 +135,7 @@ def test_main_captura_divergenciaerror_y_no_propaga_traceback(tmp_path, capsys):
         [
             "--datos", str(tmp_path),
             "--grafico", str(tmp_path / "convergencia.png"),
+            "--umbral", "2",
             "--k", "2",
             "--eta", "1e10",  # eta enorme: entrenar_gd tiene que divergir
             "--epsilon", "1e-4",

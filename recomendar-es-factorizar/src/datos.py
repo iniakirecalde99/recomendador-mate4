@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-from src.errores import ErrorDatosInsuficientes
+from src.errores import ErrorDatosInsuficientes, UmbralInsuficienteError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -76,12 +76,21 @@ def cargar_calificaciones(ruta_archivo: Path) -> ConjuntoCalificaciones:
     )
 
 
-def filtrar_por_minimo(datos: ConjuntoCalificaciones, k: int) -> ConjuntoCalificaciones:
-    """Elimina filas y columnas con menos de k calificaciones.
+def filtrar_por_minimo(datos: ConjuntoCalificaciones, umbral: int, k: int) -> ConjuntoCalificaciones:
+    """Elimina filas y columnas con menos de `umbral` calificaciones.
+
+    `umbral` es un parámetro propio del filtro, independiente de `k` (la
+    dimensión latente), pero tiene que ser >= k: el sistema de cada fila en
+    ALS es k×k y necesita al menos k observaciones para tener solución
+    única — pero tener exactamente k observaciones no alcanza para que esa
+    solución sea razonable (la calibración con MovieLens real mostró
+    `SistemaSingularError` y predicciones fuera de Ω con magnitud absurda
+    incluso con umbral == k; ver
+    experimentos/bitacora.md). Lanza `UmbralInsuficienteError` si `umbral` < `k`.
 
     Repite la eliminación hasta que una pasada no elimine nada: sacar una
-    columna puede dejar a una fila por debajo de k (o viceversa), así que
-    una sola pasada no alcanza. Reconstruye `id_usuario_a_indice` y
+    columna puede dejar a una fila por debajo del umbral (o viceversa), así
+    que una sola pasada no alcanza. Reconstruye `id_usuario_a_indice` y
     `id_pelicula_a_indice` desde cero para los ids que sobrevivieron, con
     índices nuevos y contiguos desde 0 (no reutiliza los índices viejos de
     `datos`, que quedan obsoletos apenas se elimina la primera fila o
@@ -90,6 +99,9 @@ def filtrar_por_minimo(datos: ConjuntoCalificaciones, k: int) -> ConjuntoCalific
     Lanza `ErrorDatosInsuficientes` si el filtro deja la matriz sin filas o
     sin columnas.
     """
+    if umbral < k:
+        raise UmbralInsuficienteError(umbral, k)
+
     indice_a_id_usuario = {indice: id_crudo for id_crudo, indice in datos.id_usuario_a_indice.items()}
     indice_a_id_pelicula = {indice: id_crudo for id_crudo, indice in datos.id_pelicula_a_indice.items()}
 
@@ -105,8 +117,8 @@ def filtrar_por_minimo(datos: ConjuntoCalificaciones, k: int) -> ConjuntoCalific
         conteo_filas = submascara.sum(axis=1)
         conteo_columnas = submascara.sum(axis=0)
 
-        filas_a_mantener = filas_activas[conteo_filas >= k]
-        columnas_a_mantener = columnas_activas[conteo_columnas >= k]
+        filas_a_mantener = filas_activas[conteo_filas >= umbral]
+        columnas_a_mantener = columnas_activas[conteo_columnas >= umbral]
 
         if len(filas_a_mantener) == len(filas_activas) and len(columnas_a_mantener) == len(
             columnas_activas
@@ -116,12 +128,12 @@ def filtrar_por_minimo(datos: ConjuntoCalificaciones, k: int) -> ConjuntoCalific
         usuarios_eliminados += len(filas_activas) - len(filas_a_mantener)
         peliculas_eliminadas += len(columnas_activas) - len(columnas_a_mantener)
         LOGGER.debug(
-            "filtro por k=%d, pasada %d: quedan %d usuarios y %d películas",
-            k, n_pasada, len(filas_a_mantener), len(columnas_a_mantener),
+            "filtro por umbral=%d, pasada %d: quedan %d usuarios y %d películas",
+            umbral, n_pasada, len(filas_a_mantener), len(columnas_a_mantener),
         )
 
         if len(filas_a_mantener) == 0 or len(columnas_a_mantener) == 0:
-            raise ErrorDatosInsuficientes(k)
+            raise ErrorDatosInsuficientes(umbral)
 
         filas_activas = filas_a_mantener
         columnas_activas = columnas_a_mantener
@@ -141,8 +153,8 @@ def filtrar_por_minimo(datos: ConjuntoCalificaciones, k: int) -> ConjuntoCalific
     calificaciones_eliminadas = int(datos.M.sum() - M_filtrado.sum())
     if usuarios_eliminados or peliculas_eliminadas:
         LOGGER.warning(
-            "filtro por k=%d: se eliminaron %d usuarios, %d películas y %d calificaciones",
-            k, usuarios_eliminados, peliculas_eliminadas, calificaciones_eliminadas,
+            "filtro por umbral=%d: se eliminaron %d usuarios, %d películas y %d calificaciones",
+            umbral, usuarios_eliminados, peliculas_eliminadas, calificaciones_eliminadas,
         )
 
     return ConjuntoCalificaciones(
@@ -195,7 +207,7 @@ class DatosPreparados:
     """Salida de `preparar_datos_movielens`: único punto de entrada de datos para `demo.py`.
 
     Atributos:
-        calificaciones: `ConjuntoCalificaciones` ya filtrado por k.
+        calificaciones: `ConjuntoCalificaciones` ya filtrado por `umbral`.
         titulos_por_indice: índice de columna de V → título.
     """
 
@@ -203,14 +215,16 @@ class DatosPreparados:
     titulos_por_indice: dict[int, str]
 
 
-def preparar_datos_movielens(ruta_u_data: Path, ruta_u_item: Path, k: int) -> DatosPreparados:
+def preparar_datos_movielens(
+    ruta_u_data: Path, ruta_u_item: Path, umbral: int, k: int
+) -> DatosPreparados:
     """Orquesta carga, filtro y títulos en un único punto de entrada.
 
-    Encadena `cargar_calificaciones`, `filtrar_por_minimo`, `cargar_titulos`
-    y `construir_indice_a_titulo`.
+    Encadena `cargar_calificaciones`, `filtrar_por_minimo` (con `umbral`,
+    validado contra `k`), `cargar_titulos` y `construir_indice_a_titulo`.
     """
     datos = cargar_calificaciones(ruta_u_data)
-    datos_filtrados = filtrar_por_minimo(datos, k)
+    datos_filtrados = filtrar_por_minimo(datos, umbral, k)
     titulos_por_id = cargar_titulos(ruta_u_item)
     titulos_por_indice = construir_indice_a_titulo(
         datos_filtrados.id_pelicula_a_indice, titulos_por_id
