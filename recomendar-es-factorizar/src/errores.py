@@ -138,3 +138,25 @@ class DimensionLatenteNoSoportadaError(ErrorFactorizacion):
         )
         super().__init__(mensaje)
         self.k = k
+
+
+class MinimoCalificacionesInsuficienteError(ErrorFactorizacion):
+    """El mínimo de calificaciones del recomendador HTML es menor que k.
+
+    Con menos de k calificaciones el sistema k×k del usuario nuevo es
+    singular siempre, así que la página nunca podría calcular su vector.
+
+    Args:
+        min_calificaciones: el mínimo de calificaciones pedido para la página.
+        k: la dimensión latente de la V incrustada.
+    """
+
+    def __init__(self, min_calificaciones: int, k: int) -> None:
+        mensaje = (
+            f"el mínimo de calificaciones del recomendador ({min_calificaciones}) es "
+            f"menor que k ({k}): con menos de k calificaciones el sistema {k}×{k} del "
+            f"usuario nuevo es singular. Probá con un --min-calificaciones >= {k}."
+        )
+        super().__init__(mensaje)
+        self.min_calificaciones = min_calificaciones
+        self.k = k

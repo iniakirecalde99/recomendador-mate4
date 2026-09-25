@@ -18,7 +18,7 @@ import numpy as np
 from src import config
 from src.als import entrenar_als
 from src.datos import preparar_datos_movielens
-from src.errores import DimensionLatenteNoSoportadaError
+from src.errores import DimensionLatenteNoSoportadaError, MinimoCalificacionesInsuficienteError
 from src.modelo import inicializar_factores
 
 LOGGER = logging.getLogger(__name__)
@@ -49,11 +49,14 @@ def generar_html(
     calificaciones resuelve el vector del usuario nuevo con V fija y muestra
     los títulos de las `top_n` películas no calificadas con mayor r̂, en
     orden y sin el valor estimado. Lanza `DimensionLatenteNoSoportadaError` si V
-    no tiene exactamente 2 columnas.
+    no tiene exactamente 2 columnas, y `MinimoCalificacionesInsuficienteError`
+    si `min_calificaciones` < k; en ambos casos, antes de escribir el archivo.
     """
     k = V.shape[1]
     if k != K_SOPORTADO:
         raise DimensionLatenteNoSoportadaError(k)
+    if min_calificaciones < k:
+        raise MinimoCalificacionesInsuficienteError(min_calificaciones, k)
 
     datos = {
         "k": k,

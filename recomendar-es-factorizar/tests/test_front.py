@@ -8,7 +8,7 @@ import pytest
 
 from src import config, front
 from src.als import resolver_factor
-from src.errores import DimensionLatenteNoSoportadaError
+from src.errores import DimensionLatenteNoSoportadaError, MinimoCalificacionesInsuficienteError
 
 
 def _extraer_json_incrustado(html: str) -> dict:
@@ -85,6 +85,29 @@ def test_generar_html_incrusta_el_minimo_de_calificaciones_y_el_js_lo_usa(tmp_pa
     assert _extraer_json_incrustado(ruta_propia.read_text(encoding="utf-8"))["min_calificaciones"] == 3
     # el JS decide si calcula con el mínimo incrustado, no con k
     assert "datos.min_calificaciones - calificaciones.size" in html
+
+
+def test_generar_html_rechaza_min_calificaciones_menor_que_k_sin_escribir_el_archivo(tmp_path):
+    V = np.array([[1.0, 0.5], [0.2, 1.3], [0.7, 0.7]])
+    M = np.ones((2, 3), dtype=bool)
+    ruta = tmp_path / "salidas" / "recomendador.html"
+
+    with pytest.raises(MinimoCalificacionesInsuficienteError) as exc_info:
+        front.generar_html(V, {0: "a", 1: "b", 2: "c"}, M, ruta, min_calificaciones=1)
+
+    assert exc_info.value.min_calificaciones == 1
+    assert exc_info.value.k == 2
+    assert not ruta.exists()
+
+
+def test_generar_html_acepta_min_calificaciones_igual_a_k(tmp_path):
+    V = np.array([[1.0, 0.5], [0.2, 1.3], [0.7, 0.7]])
+    M = np.ones((2, 3), dtype=bool)
+    ruta = tmp_path / "recomendador.html"
+
+    front.generar_html(V, {0: "a", 1: "b", 2: "c"}, M, ruta, min_calificaciones=2)
+
+    assert ruta.exists()
 
 
 def test_top_n_de_la_pagina_muestra_solo_titulos_sin_valor_estimado(tmp_path):
