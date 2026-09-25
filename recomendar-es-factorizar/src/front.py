@@ -40,13 +40,15 @@ def generar_html(
     ruta_salida: Path,
     n_a_calificar: int = config.N_A_CALIFICAR_DEFECTO,
     top_n: int = config.TOP_N_DEFECTO,
+    min_calificaciones: int = config.MIN_CALIFICACIONES_FRONT_DEFECTO,
 ) -> None:
     """Escribe en `ruta_salida` la página del recomendador con V y títulos como JSON.
 
     La página ofrece para calificar (de 1 a 5) las `n_a_calificar` películas
-    con más calificaciones en M. Con al menos k calificaciones resuelve el
-    vector del usuario nuevo con V fija y muestra las `top_n` películas no
-    calificadas con mayor r̂. Lanza `DimensionLatenteNoSoportadaError` si V
+    con más calificaciones en M. Con al menos `min_calificaciones`
+    calificaciones resuelve el vector del usuario nuevo con V fija y muestra
+    los títulos de las `top_n` películas no calificadas con mayor r̂, en
+    orden y sin el valor estimado. Lanza `DimensionLatenteNoSoportadaError` si V
     no tiene exactamente 2 columnas.
     """
     k = V.shape[1]
@@ -56,6 +58,7 @@ def generar_html(
     datos = {
         "k": k,
         "top_n": top_n,
+        "min_calificaciones": min_calificaciones,
         "V": V.tolist(),
         "titulos": [titulos_por_indice[j] for j in range(V.shape[0])],
         "a_calificar": peliculas_mas_calificadas(M, n_a_calificar),
@@ -85,6 +88,9 @@ def construir_parser() -> argparse.ArgumentParser:
     parser.add_argument("--semilla", type=int, default=config.SEMILLA_DEFECTO)
     parser.add_argument("--n-a-calificar", type=int, default=config.N_A_CALIFICAR_DEFECTO)
     parser.add_argument("--top-n", type=int, default=config.TOP_N_DEFECTO)
+    parser.add_argument(
+        "--min-calificaciones", type=int, default=config.MIN_CALIFICACIONES_FRONT_DEFECTO
+    )
     return parser
 
 
@@ -112,6 +118,7 @@ def main(argv: list[str] | None = None) -> None:
         args.salida,
         n_a_calificar=args.n_a_calificar,
         top_n=args.top_n,
+        min_calificaciones=args.min_calificaciones,
     )
 
 
@@ -167,7 +174,6 @@ _PLANTILLA_HTML = r"""<!DOCTYPE html>
   #estado.aviso { color: var(--aviso); }
   ol#recomendaciones { margin: 0; padding-left: 1.6em; }
   ol#recomendaciones li { padding: 4px 0; }
-  .prediccion { color: var(--tenue); font-variant-numeric: tabular-nums; }
   #vector { font-family: ui-monospace, Consolas, monospace; color: var(--tenue); margin-top: 12px; }
 </style>
 </head>
@@ -194,7 +200,6 @@ _PLANTILLA_HTML = r"""<!DOCTYPE html>
 "use strict";
 const datos = JSON.parse(document.getElementById("datos").textContent);
 const V = datos.V;
-const k = datos.k;
 const calificaciones = new Map();  // índice de película -> calificación 1..5
 
 // Informe 5: paso de U de ALS con V fija. Para el usuario nuevo se arman las
@@ -233,9 +238,11 @@ function actualizar() {
   vector.textContent = "";
   estado.classList.remove("aviso");
 
-  const faltan = k - calificaciones.size;
+  // Con k calificaciones el sistema ya es resoluble, pero queda mal
+  // determinado: se pide el mínimo incrustado (config.MIN_CALIFICACIONES_FRONT_DEFECTO).
+  const faltan = datos.min_calificaciones - calificaciones.size;
   if (faltan > 0) {
-    estado.textContent = `Calificá al menos ${k} películas para calcular tu vector ` +
+    estado.textContent = `Calificá al menos ${datos.min_calificaciones} películas para calcular tu vector ` +
       `(te ${faltan === 1 ? "falta 1" : "faltan " + faltan}).`;
     return;
   }
@@ -247,13 +254,9 @@ function actualizar() {
   }
   estado.textContent = `Top-${datos.top_n} entre las películas que no calificaste ` +
     `(${calificaciones.size} calificaciones).`;
-  for (const [j, r_hat] of recomendar(u)) {
+  for (const [j] of recomendar(u)) {
     const li = document.createElement("li");
-    li.textContent = datos.titulos[j] + " ";
-    const pred = document.createElement("span");
-    pred.className = "prediccion";
-    pred.textContent = `r̂ = ${r_hat.toFixed(2)}`;
-    li.appendChild(pred);
+    li.textContent = datos.titulos[j];
     lista.appendChild(li);
   }
   vector.textContent = `u = (${u[0].toFixed(3)}, ${u[1].toFixed(3)})`;

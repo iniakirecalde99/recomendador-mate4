@@ -6,7 +6,7 @@ import re
 import numpy as np
 import pytest
 
-from src import front
+from src import config, front
 from src.als import resolver_factor
 from src.errores import DimensionLatenteNoSoportadaError
 
@@ -71,6 +71,36 @@ def test_generar_html_rechaza_k_distinto_de_2(tmp_path):
         front.generar_html(V, {0: "a", 1: "b", 2: "c"}, M, tmp_path / "x.html")
 
 
+def test_generar_html_incrusta_el_minimo_de_calificaciones_y_el_js_lo_usa(tmp_path):
+    V = np.array([[1.0, 0.5], [0.2, 1.3], [0.7, 0.7]])
+    M = np.ones((2, 3), dtype=bool)
+    ruta_defecto = tmp_path / "defecto.html"
+    ruta_propia = tmp_path / "propia.html"
+
+    front.generar_html(V, {0: "a", 1: "b", 2: "c"}, M, ruta_defecto)
+    front.generar_html(V, {0: "a", 1: "b", 2: "c"}, M, ruta_propia, min_calificaciones=3)
+
+    html = ruta_defecto.read_text(encoding="utf-8")
+    assert _extraer_json_incrustado(html)["min_calificaciones"] == config.MIN_CALIFICACIONES_FRONT_DEFECTO
+    assert _extraer_json_incrustado(ruta_propia.read_text(encoding="utf-8"))["min_calificaciones"] == 3
+    # el JS decide si calcula con el mínimo incrustado, no con k
+    assert "datos.min_calificaciones - calificaciones.size" in html
+
+
+def test_top_n_de_la_pagina_muestra_solo_titulos_sin_valor_estimado(tmp_path):
+    V = np.array([[1.0, 0.5], [0.2, 1.3], [0.7, 0.7]])
+    M = np.ones((2, 3), dtype=bool)
+    ruta = tmp_path / "recomendador.html"
+
+    front.generar_html(V, {0: "a", 1: "b", 2: "c"}, M, ruta)
+
+    html = ruta.read_text(encoding="utf-8")
+    assert "r̂ =" not in html
+    assert "prediccion" not in html
+    assert "toFixed(2)" not in html
+
+
+# El vector del usuario que calcula la página coincide con resolver_factor.
 def test_vector_de_usuario_con_resolver_factor_coincide_con_formula_2x2_del_js():
     # Caso fijo: 5 películas, el usuario nuevo califica 3 (índices 0, 2 y 3).
     V = np.array([[1.2, 0.3], [0.4, 1.1], [0.9, 0.8], [0.1, 1.5], [1.0, 1.0]])

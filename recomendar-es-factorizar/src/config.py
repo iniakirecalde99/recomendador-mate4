@@ -81,3 +81,9 @@ N_A_CALIFICAR_DEFECTO: int = 30
 # Cantidad de películas (las más calificadas de MovieLens filtrado) que la
 # página ofrece para calificar: conocidas para casi cualquiera y todavía
 # cómodas de recorrer en una sola pantalla.
+
+MIN_CALIFICACIONES_FRONT_DEFECTO: int = 5
+# Motivo: con k calificaciones el sistema k×k del usuario nuevo es
+# resoluble pero queda mal determinado (u interpola exactamente esos k
+# datos); mismo criterio que el umbral del filtro, que exige bastante más
+# que k observaciones por fila.
