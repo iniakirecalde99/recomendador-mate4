@@ -119,3 +119,22 @@ class ErrorDatosInsuficientes(ErrorFactorizacion):
         )
         super().__init__(mensaje)
         self.umbral = umbral
+
+
+class DimensionLatenteNoSoportadaError(ErrorFactorizacion):
+    """El front del recomendador recibió una V con k distinto de 2.
+
+    La página resuelve en JavaScript las ecuaciones normales del usuario
+    nuevo con la fórmula cerrada del sistema 2×2, así que solo sirve para k=2.
+
+    Args:
+        k: la cantidad de columnas (factores latentes) de la V recibida.
+    """
+
+    def __init__(self, k: int) -> None:
+        mensaje = (
+            f"el recomendador HTML solo soporta k=2 (resuelve el sistema 2×2 con "
+            f"fórmula cerrada en JavaScript), pero V tiene k={k} columnas."
+        )
+        super().__init__(mensaje)
+        self.k = k

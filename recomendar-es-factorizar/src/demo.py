@@ -111,6 +111,7 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     filas = comparar_metodos(resultado_als, resultado_gd)
+    args.grafico.parent.mkdir(parents=True, exist_ok=True)
     graficar_convergencia(resultado_als, resultado_gd, args.grafico)
 
     print()

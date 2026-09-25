@@ -68,6 +68,16 @@ USUARIO_DEFECTO: int = 1
 RUTA_DATOS_DEFECTO: Path = Path("data/ml-100k")
 # Carpeta con `u.data` y `u.item`, la misma que usa scripts/descargar_movielens.py.
 
-RUTA_GRAFICO_DEFECTO: Path = Path("convergencia.png")
-# Dónde se guarda el gráfico de convergencia; no hay un criterio
-# más allá de que quede al lado de donde se corrió la demo.
+RUTA_GRAFICO_DEFECTO: Path = Path("salidas/convergencia.png")
+# Dónde se guarda el gráfico de convergencia: en salidas/, que va
+# en .gitignore, junto con el resto de lo que genera el proyecto.
+
+# --- Recomendador HTML ---
+
+RUTA_FRONT_DEFECTO: Path = Path("salidas/recomendador.html")
+# Página estática que genera `python -m src.front`, al lado del gráfico.
+
+N_A_CALIFICAR_DEFECTO: int = 30
+# Cantidad de películas (las más calificadas de MovieLens filtrado) que la
+# página ofrece para calificar: conocidas para casi cualquiera y todavía
+# cómodas de recorrer en una sola pantalla.
