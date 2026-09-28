@@ -25,6 +25,15 @@ LOGGER = logging.getLogger(__name__)
 
 K_SOPORTADO = 2  # el JS resuelve el sistema 2×2 con fórmula cerrada
 
+# Qué significa cada calificación, de 1 a 5, en la leyenda de la página.
+ETIQUETAS_CALIFICACION: list[str] = [
+    "no me gusta",
+    "no me convence",
+    "está bien",
+    "me gusta",
+    "me encanta",
+]
+
 # Nombres de `u.genre` de MovieLens → cómo se muestran en la página.
 GENEROS_EN_ESPANOL: dict[str, str] = {
     "unknown": "sin género",
@@ -89,6 +98,7 @@ def generar_html(
         "k": k,
         "top_n": top_n,
         "min_calificaciones": min_calificaciones,
+        "etiquetas_calificacion": ETIQUETAS_CALIFICACION,
         "V": V.tolist(),
         "titulos": [titulos_por_indice[j] for j in range(V.shape[0])],
         "a_calificar": peliculas_mas_calificadas(M, n_a_calificar),
@@ -211,6 +221,8 @@ _PLANTILLA_HTML = r"""<!DOCTYPE html>
     background: var(--acento); border-color: var(--acento); color: var(--acento-texto);
   }
   .estrellas button:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+  .escala { color: var(--tenue); margin: 0 0 8px; }
+  .escala b { color: var(--texto); font-variant-numeric: tabular-nums; }
   .generos { display: block; color: var(--tenue); font-size: 0.85em; }
   #estado { color: var(--tenue); margin: 0 0 12px; }
   #estado.aviso { color: var(--aviso); }
@@ -227,6 +239,8 @@ _PLANTILLA_HTML = r"""<!DOCTYPE html>
   <div class="columnas">
     <section>
       <h2>Las más calificadas de MovieLens</h2>
+      <p class="escala">Calificá de 1 a 5 las que viste; las que no, dejalas en blanco.</p>
+      <p class="escala" id="escala"></p>
       <ul id="a-calificar"></ul>
     </section>
     <section aria-live="polite">
@@ -317,6 +331,16 @@ function actualizar() {
   vector.textContent = `u = (${u[0].toFixed(3)}, ${u[1].toFixed(3)})`;
 }
 
+function armarEscala() {
+  const escala = document.getElementById("escala");
+  datos.etiquetas_calificacion.forEach((etiqueta, i) => {
+    if (i > 0) escala.append(" · ");
+    const numero = document.createElement("b");
+    numero.textContent = i + 1;
+    escala.append(numero, " = " + etiqueta);
+  });
+}
+
 function armarListaACalificar() {
   const ul = document.getElementById("a-calificar");
   for (const j of datos.a_calificar) {
@@ -332,6 +356,8 @@ function armarListaACalificar() {
       boton.type = "button";
       boton.textContent = r;
       boton.setAttribute("aria-pressed", "false");
+      boton.title = `${r} = ${datos.etiquetas_calificacion[r - 1]}`;
+      boton.setAttribute("aria-label", boton.title);
       boton.addEventListener("click", () => {
         // volver a tocar la misma calificación la borra
         const nueva = calificaciones.get(j) === r ? null : r;
@@ -348,6 +374,7 @@ function armarListaACalificar() {
   }
 }
 
+armarEscala();
 armarListaACalificar();
 actualizar();
 </script>

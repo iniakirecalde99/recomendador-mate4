@@ -81,6 +81,21 @@ def test_generar_html_sin_generos_deja_listas_vacias(tmp_path):
     assert _extraer_json_incrustado(ruta.read_text(encoding="utf-8"))["generos"] == [[], [], []]
 
 
+def test_generar_html_explica_la_escala_de_1_a_5(tmp_path):
+    V = np.array([[1.0, 0.5], [0.2, 1.3], [0.7, 0.7]])
+    M = np.ones((2, 3), dtype=bool)
+    ruta = tmp_path / "recomendador.html"
+
+    front.generar_html(V, {0: "a", 1: "b", 2: "c"}, M, ruta)
+
+    html = ruta.read_text(encoding="utf-8")
+    etiquetas = _extraer_json_incrustado(html)["etiquetas_calificacion"]
+    assert len(etiquetas) == 5
+    assert etiquetas[0] == "no me gusta"
+    assert etiquetas[4] == "me encanta"
+    assert 'id="escala"' in html  # la leyenda visible que arma el JS con esas etiquetas
+
+
 def test_peliculas_mas_calificadas_ordena_por_cantidad_de_calificaciones():
     M = np.array(
         [
