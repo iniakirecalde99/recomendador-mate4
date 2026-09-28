@@ -187,6 +187,42 @@ def cargar_titulos(ruta_u_item: Path) -> dict[int, str]:
     return titulos_por_id
 
 
+def cargar_generos(ruta_u_item: Path, ruta_u_genre: Path) -> dict[int, list[str]]:
+    """Carga los géneros de cada película: id de película crudo → nombres.
+
+    Los nombres salen de `u.genre` (líneas `nombre|posición`) y las marcas
+    0/1 de las últimas columnas de `u.item`, una por género en ese orden.
+    Solo se usan para mostrar: el modelo no ve los géneros (las dimensiones latentes emergen del entrenamiento).
+    """
+    nombres_por_posicion: dict[int, str] = {}
+    with Path(ruta_u_genre).open(encoding="latin-1") as archivo:
+        for linea in archivo:
+            linea = linea.strip()
+            if not linea:
+                continue
+            nombre, posicion = linea.split("|")
+            nombres_por_posicion[int(posicion)] = nombre
+    n_generos = len(nombres_por_posicion)
+
+    generos_por_id: dict[int, list[str]] = {}
+    with Path(ruta_u_item).open(encoding="latin-1") as archivo:
+        for linea in archivo:
+            linea = linea.strip()
+            if not linea:
+                continue
+            campos = linea.split("|")
+            marcas = campos[-n_generos:]
+            generos_por_id[int(campos[0])] = [
+                nombres_por_posicion[posicion]
+                for posicion, marca in enumerate(marcas)
+                if marca == "1"
+            ]
+
+    LOGGER.info("cargados los géneros de %d películas desde %s", len(generos_por_id), ruta_u_item)
+
+    return generos_por_id
+
+
 def construir_indice_a_titulo(
     id_pelicula_a_indice: dict[int, int], titulos_por_id: dict[int, str]
 ) -> dict[int, str]:

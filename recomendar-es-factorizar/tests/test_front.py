@@ -49,6 +49,38 @@ def test_generar_html_crea_el_archivo_con_v_y_titulos_en_json(tmp_path):
     assert len(datos["a_calificar"]) == 2
 
 
+def test_generar_html_incrusta_los_generos_en_espanol(tmp_path):
+    V = np.array([[1.0, 0.5], [0.2, 1.3], [0.7, 0.7]])
+    M = np.ones((2, 3), dtype=bool)
+    generos_por_indice = {
+        0: ["Animation", "Children's", "Comedy"],
+        1: ["Sci-Fi", "Film-Noir"],
+        2: ["unknown"],
+    }
+    ruta = tmp_path / "recomendador.html"
+
+    front.generar_html(
+        V, {0: "a", 1: "b", 2: "c"}, M, ruta, generos_por_indice=generos_por_indice
+    )
+
+    datos = _extraer_json_incrustado(ruta.read_text(encoding="utf-8"))
+    assert datos["generos"] == [
+        ["animación", "infantil", "comedia"],
+        ["ciencia ficción", "cine negro"],
+        ["sin género"],
+    ]
+
+
+def test_generar_html_sin_generos_deja_listas_vacias(tmp_path):
+    V = np.array([[1.0, 0.5], [0.2, 1.3], [0.7, 0.7]])
+    M = np.ones((2, 3), dtype=bool)
+    ruta = tmp_path / "recomendador.html"
+
+    front.generar_html(V, {0: "a", 1: "b", 2: "c"}, M, ruta)
+
+    assert _extraer_json_incrustado(ruta.read_text(encoding="utf-8"))["generos"] == [[], [], []]
+
+
 def test_peliculas_mas_calificadas_ordena_por_cantidad_de_calificaciones():
     M = np.array(
         [

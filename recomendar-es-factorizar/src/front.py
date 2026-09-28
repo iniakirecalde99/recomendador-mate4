@@ -17,13 +17,36 @@ import numpy as np
 
 from src import config
 from src.als import entrenar_als
-from src.datos import preparar_datos_movielens
+from src.datos import cargar_generos, preparar_datos_movielens
 from src.errores import DimensionLatenteNoSoportadaError, MinimoCalificacionesInsuficienteError
 from src.modelo import inicializar_factores
 
 LOGGER = logging.getLogger(__name__)
 
 K_SOPORTADO = 2  # el JS resuelve el sistema 2×2 con fórmula cerrada
+
+# Nombres de `u.genre` de MovieLens → cómo se muestran en la página.
+GENEROS_EN_ESPANOL: dict[str, str] = {
+    "unknown": "sin género",
+    "Action": "acción",
+    "Adventure": "aventura",
+    "Animation": "animación",
+    "Children's": "infantil",
+    "Comedy": "comedia",
+    "Crime": "crimen",
+    "Documentary": "documental",
+    "Drama": "drama",
+    "Fantasy": "fantasía",
+    "Film-Noir": "cine negro",
+    "Horror": "terror",
+    "Musical": "musical",
+    "Mystery": "misterio",
+    "Romance": "romance",
+    "Sci-Fi": "ciencia ficción",
+    "Thriller": "suspenso",
+    "War": "bélica",
+    "Western": "western",
+}
 
 
 def peliculas_mas_calificadas(M: np.ndarray, cantidad: int) -> list[int]:
@@ -41,6 +64,7 @@ def generar_html(
     n_a_calificar: int = config.N_A_CALIFICAR_DEFECTO,
     top_n: int = config.TOP_N_DEFECTO,
     min_calificaciones: int = config.MIN_CALIFICACIONES_FRONT_DEFECTO,
+    generos_por_indice: dict[int, list[str]] | None = None,
 ) -> None:
     """Escribe en `ruta_salida` la página del recomendador con V y títulos como JSON.
 
@@ -51,6 +75,9 @@ def generar_html(
     orden y sin el valor estimado. Lanza `DimensionLatenteNoSoportadaError` si V
     no tiene exactamente 2 columnas, y `MinimoCalificacionesInsuficienteError`
     si `min_calificaciones` < k; en ambos casos, antes de escribir el archivo.
+
+    Si se pasa `generos_por_indice` (nombres de MovieLens), la página muestra
+    los géneros de cada película en español; solo son para mostrar.
     """
     k = V.shape[1]
     if k != K_SOPORTADO:
@@ -65,6 +92,10 @@ def generar_html(
         "V": V.tolist(),
         "titulos": [titulos_por_indice[j] for j in range(V.shape[0])],
         "a_calificar": peliculas_mas_calificadas(M, n_a_calificar),
+        "generos": [
+            [GENEROS_EN_ESPANOL.get(g, g) for g in (generos_por_indice or {}).get(j, [])]
+            for j in range(V.shape[0])
+        ],
     }
     # "<\/" es un escape válido en JSON y evita que un título cierre el <script>.
     json_incrustado = json.dumps(datos, ensure_ascii=True).replace("</", "<\\/")
@@ -114,6 +145,12 @@ def main(argv: list[str] | None = None) -> None:
     )
     resultado = entrenar_als(R, M, U0, V0, epsilon=args.epsilon, max_iter=args.max_iter)
 
+    generos_por_id = cargar_generos(args.datos / "u.item", args.datos / "u.genre")
+    generos_por_indice = {
+        indice: generos_por_id[id_pelicula]
+        for id_pelicula, indice in datos.calificaciones.id_pelicula_a_indice.items()
+    }
+
     generar_html(
         resultado.V,
         datos.titulos_por_indice,
@@ -122,6 +159,7 @@ def main(argv: list[str] | None = None) -> None:
         n_a_calificar=args.n_a_calificar,
         top_n=args.top_n,
         min_calificaciones=args.min_calificaciones,
+        generos_por_indice=generos_por_indice,
     )
 
 
@@ -173,6 +211,7 @@ _PLANTILLA_HTML = r"""<!DOCTYPE html>
     background: var(--acento); border-color: var(--acento); color: var(--acento-texto);
   }
   .estrellas button:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+  .generos { display: block; color: var(--tenue); font-size: 0.85em; }
   #estado { color: var(--tenue); margin: 0 0 12px; }
   #estado.aviso { color: var(--aviso); }
   ol#recomendaciones { margin: 0; padding-left: 1.6em; }
@@ -223,6 +262,19 @@ function resolverVectorUsuario() {
   return [(d * e - b * f) / det, (a * f - b * e) / det];
 }
 
+// Título con los géneros de MovieLens debajo (solo para mostrar: el modelo no los usa).
+function nodoPelicula(j) {
+  const contenedor = document.createElement("span");
+  contenedor.textContent = datos.titulos[j];
+  if (datos.generos[j].length > 0) {
+    const generos = document.createElement("span");
+    generos.className = "generos";
+    generos.textContent = datos.generos[j].join(", ");
+    contenedor.appendChild(generos);
+  }
+  return contenedor;
+}
+
 function recomendar(u) {
   const candidatos = [];
   for (let j = 0; j < V.length; j++) {
@@ -259,7 +311,7 @@ function actualizar() {
     `(${calificaciones.size} calificaciones).`;
   for (const [j] of recomendar(u)) {
     const li = document.createElement("li");
-    li.textContent = datos.titulos[j];
+    li.appendChild(nodoPelicula(j));
     lista.appendChild(li);
   }
   vector.textContent = `u = (${u[0].toFixed(3)}, ${u[1].toFixed(3)})`;
@@ -270,8 +322,7 @@ function armarListaACalificar() {
   for (const j of datos.a_calificar) {
     const li = document.createElement("li");
     li.className = "pelicula";
-    const titulo = document.createElement("span");
-    titulo.textContent = datos.titulos[j];
+    const titulo = nodoPelicula(j);
     const estrellas = document.createElement("div");
     estrellas.className = "estrellas";
     estrellas.setAttribute("role", "group");

@@ -8,6 +8,7 @@ import pytest
 from src.datos import (
     ConjuntoCalificaciones,
     cargar_calificaciones,
+    cargar_generos,
     cargar_titulos,
     construir_indice_a_titulo,
     filtrar_por_minimo,
@@ -143,6 +144,30 @@ def test_cargar_titulos_y_construir_indice_a_titulo(tmp_path):
     indice_a_titulo = construir_indice_a_titulo(id_pelicula_a_indice, titulos_por_id)
 
     assert indice_a_titulo == {0: "Toy Story (1995)", 1: "Am\xe9lie (2001)"}
+
+
+def test_cargar_generos_lee_las_marcas_de_u_item_con_los_nombres_de_u_genre(tmp_path):
+    (tmp_path / "u.genre").write_text(
+        "unknown|0\nAction|1\nAdventure|2\nAnimation|3\nChildren's|4\nComedy|5\n"
+        "Crime|6\nDocumentary|7\nDrama|8\nFantasy|9\nFilm-Noir|10\nHorror|11\n"
+        "Musical|12\nMystery|13\nRomance|14\nSci-Fi|15\nThriller|16\nWar|17\n"
+        "Western|18\n\n",
+        encoding="latin-1",
+    )
+    contenido = (
+        "1|Toy Story (1995)|01-Jan-1995||url1|0|0|0|1|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
+        "2|GoldenEye (1995)|01-Jan-1995||url2|0|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0|1|0|0\n"
+        "3|Sin datos (1990)|01-Jan-1990||url3|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
+    )
+    (tmp_path / "u.item").write_bytes(contenido.encode("latin-1"))
+
+    generos_por_id = cargar_generos(tmp_path / "u.item", tmp_path / "u.genre")
+
+    assert generos_por_id == {
+        1: ["Animation", "Children's", "Comedy"],
+        2: ["Action", "Adventure", "Thriller"],
+        3: ["unknown"],
+    }
 
 
 def test_preparar_datos_movielens_integra_carga_filtro_y_titulos(tmp_path):
