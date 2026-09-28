@@ -2,12 +2,14 @@
 
 import json
 import re
+from pathlib import Path
 
 import numpy as np
 import pytest
 
 from src import config, front
 from src.als import resolver_factor
+from src.datos import cargar_generos
 from src.errores import DimensionLatenteNoSoportadaError, MinimoCalificacionesInsuficienteError
 
 
@@ -53,9 +55,9 @@ def test_generar_html_incrusta_los_generos_en_espanol(tmp_path):
     V = np.array([[1.0, 0.5], [0.2, 1.3], [0.7, 0.7]])
     M = np.ones((2, 3), dtype=bool)
     generos_por_indice = {
-        0: ["Animation", "Children's", "Comedy"],
-        1: ["Sci-Fi", "Film-Noir"],
-        2: ["unknown"],
+        0: ["Animation", "Children", "Comedy"],
+        1: ["Sci-Fi", "Film-Noir", "IMAX"],
+        2: ["(no genres listed)"],
     }
     ruta = tmp_path / "recomendador.html"
 
@@ -66,7 +68,7 @@ def test_generar_html_incrusta_los_generos_en_espanol(tmp_path):
     datos = _extraer_json_incrustado(ruta.read_text(encoding="utf-8"))
     assert datos["generos"] == [
         ["animación", "infantil", "comedia"],
-        ["ciencia ficción", "cine negro"],
+        ["ciencia ficción", "cine negro", "IMAX"],
         ["sin género"],
     ]
 
@@ -182,3 +184,12 @@ def test_vector_de_usuario_con_resolver_factor_coincide_con_formula_2x2_del_js()
     u_js = _formula_2x2_del_js(V[m_usuario], r_usuario[m_usuario])
 
     assert np.allclose(u_als, u_js)
+
+
+@pytest.mark.movielens
+def test_todos_los_generos_de_movielens_tienen_traduccion():
+    ruta_movies = Path(__file__).resolve().parent.parent / "data" / "ml-latest-small" / "movies.csv"
+
+    generos = {g for lista in cargar_generos(ruta_movies).values() for g in lista}
+
+    assert generos - set(front.GENEROS_EN_ESPANOL) == set()

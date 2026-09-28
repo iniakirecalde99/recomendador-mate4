@@ -34,13 +34,13 @@ ETIQUETAS_CALIFICACION: list[str] = [
     "me encanta",
 ]
 
-# Nombres de `u.genre` de MovieLens → cómo se muestran en la página.
+# Géneros de `movies.csv` de MovieLens → cómo se muestran en la página.
 GENEROS_EN_ESPANOL: dict[str, str] = {
-    "unknown": "sin género",
+    "(no genres listed)": "sin género",
     "Action": "acción",
     "Adventure": "aventura",
     "Animation": "animación",
-    "Children's": "infantil",
+    "Children": "infantil",
     "Comedy": "comedia",
     "Crime": "crimen",
     "Documentary": "documental",
@@ -48,6 +48,7 @@ GENEROS_EN_ESPANOL: dict[str, str] = {
     "Fantasy": "fantasía",
     "Film-Noir": "cine negro",
     "Horror": "terror",
+    "IMAX": "IMAX",
     "Musical": "musical",
     "Mystery": "misterio",
     "Romance": "romance",
