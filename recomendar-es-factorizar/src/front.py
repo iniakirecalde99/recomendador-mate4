@@ -144,7 +144,7 @@ def main(argv: list[str] | None = None) -> None:
     args = construir_parser().parse_args(argv)
     k = config.K_DEFECTO
 
-    datos = preparar_datos_movielens(args.datos / "u.data", args.datos / "u.item", args.umbral, k)
+    datos = preparar_datos_movielens(args.datos / "ratings.csv", args.datos / "movies.csv", args.umbral, k)
     R = datos.calificaciones.R
     M = datos.calificaciones.M
     m, n = R.shape
@@ -155,7 +155,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     resultado = entrenar_als(R, M, U0, V0, epsilon=args.epsilon, max_iter=args.max_iter)
 
-    generos_por_id = cargar_generos(args.datos / "u.item", args.datos / "u.genre")
+    generos_por_id = cargar_generos(args.datos / "movies.csv")
     generos_por_indice = {
         indice: generos_por_id[id_pelicula]
         for id_pelicula, indice in datos.calificaciones.id_pelicula_a_indice.items()

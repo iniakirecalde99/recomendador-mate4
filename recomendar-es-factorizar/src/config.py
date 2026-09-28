@@ -65,8 +65,9 @@ USUARIO_DEFECTO: int = 1
 # UsuarioNoEncontradoError con un mensaje claro en vez de fallar con un
 # error críptico de índice.
 
-RUTA_DATOS_DEFECTO: Path = Path("data/ml-100k")
-# Carpeta con `u.data` y `u.item`, la misma que usa scripts/descargar_movielens.py.
+RUTA_DATOS_DEFECTO: Path = Path("data/ml-latest-small")
+# Carpeta con `ratings.csv` y `movies.csv` de MovieLens latest-small, la
+# misma que usa scripts/descargar_movielens.py.
 
 RUTA_GRAFICO_DEFECTO: Path = Path("salidas/convergencia.png")
 # Dónde se guarda el gráfico de convergencia: en salidas/, que va

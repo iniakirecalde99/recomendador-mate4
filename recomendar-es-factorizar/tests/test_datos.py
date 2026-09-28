@@ -16,16 +16,17 @@ from src.datos import (
 )
 from src.errores import ErrorDatosInsuficientes, UmbralInsuficienteError
 
-RUTA_MOVIELENS = Path(__file__).resolve().parent.parent / "data" / "ml-100k"
+RUTA_MOVIELENS = Path(__file__).resolve().parent.parent / "data" / "ml-latest-small"
 
 
 def test_cargar_calificaciones_reindexa_ids_y_arma_mascara(tmp_path):
     contenido = (
-        "3\t7\t5\t888\n"
-        "3\t2\t4\t889\n"
-        "9\t7\t1\t890\n"
+        "userId,movieId,rating,timestamp\n"
+        "3,7,5.0,888\n"
+        "3,2,4.5,889\n"
+        "9,7,1.0,890\n"
     )
-    ruta_archivo = tmp_path / "u.data"
+    ruta_archivo = tmp_path / "ratings.csv"
     ruta_archivo.write_text(contenido, encoding="utf-8")
 
     resultado = cargar_calificaciones(ruta_archivo)
@@ -36,7 +37,7 @@ def test_cargar_calificaciones_reindexa_ids_y_arma_mascara(tmp_path):
     assert resultado.M.dtype == bool
     assert resultado.M.sum() == 3
 
-    np.testing.assert_allclose(resultado.R[0, 0], 4.0)  # usuario 3, película 2
+    np.testing.assert_allclose(resultado.R[0, 0], 4.5)  # usuario 3, película 2 (media estrella)
     np.testing.assert_allclose(resultado.R[0, 1], 5.0)  # usuario 3, película 7
     np.testing.assert_allclose(resultado.R[1, 1], 1.0)  # usuario 9, película 7
     assert np.isnan(resultado.R[1, 0])  # usuario 9, película 2: sin calificar
@@ -46,10 +47,11 @@ def test_cargar_calificaciones_reindexa_ids_y_arma_mascara(tmp_path):
 
 @pytest.mark.movielens
 def test_cargar_calificaciones_dimensiones_y_mascara():
-    resultado = cargar_calificaciones(RUTA_MOVIELENS / "u.data")
+    resultado = cargar_calificaciones(RUTA_MOVIELENS / "ratings.csv")
 
-    assert resultado.R.shape == (943, 1682)
-    assert resultado.M.sum() == 100_000
+    # 9724 películas con al menos una calificación (movies.csv lista 9742)
+    assert resultado.R.shape == (610, 9724)
+    assert resultado.M.sum() == 100_836
 
 
 def test_filtrar_por_minimo_todas_las_filas_y_columnas_tienen_al_menos_k():
@@ -123,50 +125,46 @@ def test_filtrar_por_minimo_lanza_umbral_insuficiente_si_umbral_es_menor_que_k()
 
 def test_cargar_titulos_y_construir_indice_a_titulo(tmp_path):
     contenido = (
-        "1|Toy Story (1995)|01-Jan-1995||url1|0|0|0|1|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
-        "2|GoldenEye (1995)|01-Jan-1995||url2|0|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
-        "3|Am\xe9lie (2001)|01-Jan-2001||url3|0|0|0|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
+        "movieId,title,genres\n"
+        "1,Toy Story (1995),Adventure|Animation|Children|Comedy|Fantasy\n"
+        '11,"American President, The (1995)",Comedy|Drama|Romance\n'
+        "3,Am\xe9lie (2001),Comedy|Romance\n"
     )
-    ruta_archivo = tmp_path / "u.item"
-    ruta_archivo.write_bytes(contenido.encode("latin-1"))
+    ruta_archivo = tmp_path / "movies.csv"
+    ruta_archivo.write_text(contenido, encoding="utf-8")
 
     titulos_por_id = cargar_titulos(ruta_archivo)
 
     assert titulos_por_id == {
         1: "Toy Story (1995)",
-        2: "GoldenEye (1995)",
+        11: "American President, The (1995)",  # título entre comillas, con coma
         3: "Am\xe9lie (2001)",
     }
 
     # id_pelicula_a_indice típicamente sale de cargar_calificaciones/filtrar_por_minimo:
     # solo cubre las películas que sobrevivieron al filtro (acá, 1 y 3; la 2 quedó afuera).
-    id_pelicula_a_indice = {1: 0, 3: 1}
+    id_pelicula_a_indice = {1: 0, 3: 1}  # la 11 quedó afuera
     indice_a_titulo = construir_indice_a_titulo(id_pelicula_a_indice, titulos_por_id)
 
     assert indice_a_titulo == {0: "Toy Story (1995)", 1: "Am\xe9lie (2001)"}
 
 
-def test_cargar_generos_lee_las_marcas_de_u_item_con_los_nombres_de_u_genre(tmp_path):
-    (tmp_path / "u.genre").write_text(
-        "unknown|0\nAction|1\nAdventure|2\nAnimation|3\nChildren's|4\nComedy|5\n"
-        "Crime|6\nDocumentary|7\nDrama|8\nFantasy|9\nFilm-Noir|10\nHorror|11\n"
-        "Musical|12\nMystery|13\nRomance|14\nSci-Fi|15\nThriller|16\nWar|17\n"
-        "Western|18\n\n",
-        encoding="latin-1",
-    )
+def test_cargar_generos_separa_la_columna_genres_de_movies_csv(tmp_path):
     contenido = (
-        "1|Toy Story (1995)|01-Jan-1995||url1|0|0|0|1|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
-        "2|GoldenEye (1995)|01-Jan-1995||url2|0|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0|1|0|0\n"
-        "3|Sin datos (1990)|01-Jan-1990||url3|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
+        "movieId,title,genres\n"
+        "1,Toy Story (1995),Adventure|Animation|Children|Comedy|Fantasy\n"
+        '11,"American President, The (1995)",Comedy|Drama|Romance\n'
+        "114335,La cravate (1957),(no genres listed)\n"
     )
-    (tmp_path / "u.item").write_bytes(contenido.encode("latin-1"))
+    ruta_archivo = tmp_path / "movies.csv"
+    ruta_archivo.write_text(contenido, encoding="utf-8")
 
-    generos_por_id = cargar_generos(tmp_path / "u.item", tmp_path / "u.genre")
+    generos_por_id = cargar_generos(ruta_archivo)
 
     assert generos_por_id == {
-        1: ["Animation", "Children's", "Comedy"],
-        2: ["Action", "Adventure", "Thriller"],
-        3: ["unknown"],
+        1: ["Adventure", "Animation", "Children", "Comedy", "Fantasy"],
+        11: ["Comedy", "Drama", "Romance"],
+        114335: ["(no genres listed)"],
     }
 
 
@@ -174,25 +172,26 @@ def test_preparar_datos_movielens_integra_carga_filtro_y_titulos(tmp_path):
     # k=2: la película 3 tiene una sola calificación (de usuario 1) y el
     # filtro la elimina; usuarios 1 y 2 quedan con 2 calificaciones cada uno
     # (películas 1 y 2), así que ninguno se elimina en una pasada posterior.
-    contenido_u_data = (
-        "1\t1\t5\t100\n"
-        "1\t2\t4\t101\n"
-        "1\t3\t3\t102\n"
-        "2\t1\t3\t103\n"
-        "2\t2\t2\t104\n"
+    ruta_ratings = tmp_path / "ratings.csv"
+    ruta_ratings.write_text(
+        "userId,movieId,rating,timestamp\n"
+        "1,1,5.0,100\n"
+        "1,2,4.0,101\n"
+        "1,3,3.0,102\n"
+        "2,1,3.0,103\n"
+        "2,2,2.0,104\n",
+        encoding="utf-8",
     )
-    ruta_u_data = tmp_path / "u.data"
-    ruta_u_data.write_text(contenido_u_data, encoding="utf-8")
-
-    contenido_u_item = (
-        "1|Toy Story (1995)|01-Jan-1995||url1|0|0|0|1|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
-        "2|GoldenEye (1995)|01-Jan-1995||url2|0|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
-        "3|Nixon (1995)|01-Jan-1995||url3|0|0|0|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
+    ruta_movies = tmp_path / "movies.csv"
+    ruta_movies.write_text(
+        "movieId,title,genres\n"
+        "1,Toy Story (1995),Adventure|Animation|Children|Comedy|Fantasy\n"
+        "2,GoldenEye (1995),Action|Adventure|Thriller\n"
+        "3,Nixon (1995),Drama\n",
+        encoding="utf-8",
     )
-    ruta_u_item = tmp_path / "u.item"
-    ruta_u_item.write_bytes(contenido_u_item.encode("latin-1"))
 
-    datos = preparar_datos_movielens(ruta_u_data, ruta_u_item, umbral=2, k=2)
+    datos = preparar_datos_movielens(ruta_ratings, ruta_movies, umbral=2, k=2)
 
     # Película 3 filtrada; usuarios 1 y 2, y películas 1 y 2 sobreviven.
     assert set(datos.calificaciones.id_usuario_a_indice) == {1, 2}

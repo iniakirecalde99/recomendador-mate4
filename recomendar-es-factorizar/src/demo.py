@@ -82,7 +82,7 @@ def main(argv: list[str] | None = None) -> None:
     args = construir_parser().parse_args(argv)
 
     datos = preparar_datos_movielens(
-        args.datos / "u.data", args.datos / "u.item", args.umbral, args.k
+        args.datos / "ratings.csv", args.datos / "movies.csv", args.umbral, args.k
     )
     R = datos.calificaciones.R
     M = datos.calificaciones.M

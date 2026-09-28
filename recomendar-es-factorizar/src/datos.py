@@ -1,5 +1,6 @@
 """Carga y preprocesamiento de MovieLens."""
 
+import csv
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,21 +32,19 @@ class ConjuntoCalificaciones:
 
 
 def cargar_calificaciones(ruta_archivo: Path) -> ConjuntoCalificaciones:
-    """Carga un archivo estilo `u.data`.
+    """Carga `ratings.csv` de MovieLens.
 
-    El archivo tiene una calificación por línea: usuario, película,
-    calificación y timestamp separados por tab. Reindexa los ids de usuario
+    CSV con encabezado `userId,movieId,rating,timestamp`, una calificación
+    por línea (de 0.5 a 5, de a media estrella). Reindexa los ids de usuario
     y de película desde 0 (según su orden ascendente) y arma R (con NaN en
     los huecos) y M. No aplica ningún filtro.
     """
     filas: list[tuple[int, int, float]] = []
-    with Path(ruta_archivo).open(encoding="utf-8") as archivo:
-        for linea in archivo:
-            linea = linea.strip()
-            if not linea:
-                continue
-            id_usuario_str, id_pelicula_str, calificacion_str, _timestamp = linea.split("\t")
-            filas.append((int(id_usuario_str), int(id_pelicula_str), float(calificacion_str)))
+    with Path(ruta_archivo).open(encoding="utf-8", newline="") as archivo:
+        for registro in csv.DictReader(archivo):
+            filas.append(
+                (int(registro["userId"]), int(registro["movieId"]), float(registro["rating"]))
+            )
 
     ids_usuario = sorted({id_usuario for id_usuario, _id_pelicula, _calificacion in filas})
     ids_pelicula = sorted({id_pelicula for _id_usuario, id_pelicula, _calificacion in filas})
@@ -165,60 +164,35 @@ def filtrar_por_minimo(datos: ConjuntoCalificaciones, umbral: int, k: int) -> Co
     )
 
 
-def cargar_titulos(ruta_u_item: Path) -> dict[int, str]:
-    """Carga `u.item` y devuelve el mapeo id de película crudo → título.
+def cargar_titulos(ruta_movies: Path) -> dict[int, str]:
+    """Carga `movies.csv` y devuelve el mapeo id de película crudo → título.
 
-    El archivo está codificado en latin-1 y tiene los campos separados por
-    `|`; el id de película es el primero y el título el segundo.
+    CSV en UTF-8 con encabezado `movieId,title,genres`; los títulos con coma
+    vienen entre comillas, por eso se lee con el módulo `csv`.
     """
     titulos_por_id: dict[int, str] = {}
-    with Path(ruta_u_item).open(encoding="latin-1") as archivo:
-        for linea in archivo:
-            linea = linea.strip()
-            if not linea:
-                continue
-            campos = linea.split("|")
-            id_pelicula = int(campos[0])
-            titulo = campos[1]
-            titulos_por_id[id_pelicula] = titulo
+    with Path(ruta_movies).open(encoding="utf-8", newline="") as archivo:
+        for registro in csv.DictReader(archivo):
+            titulos_por_id[int(registro["movieId"])] = registro["title"]
 
-    LOGGER.info("cargados %d títulos desde %s", len(titulos_por_id), ruta_u_item)
+    LOGGER.info("cargados %d títulos desde %s", len(titulos_por_id), ruta_movies)
 
     return titulos_por_id
 
 
-def cargar_generos(ruta_u_item: Path, ruta_u_genre: Path) -> dict[int, list[str]]:
+def cargar_generos(ruta_movies: Path) -> dict[int, list[str]]:
     """Carga los géneros de cada película: id de película crudo → nombres.
 
-    Los nombres salen de `u.genre` (líneas `nombre|posición`) y las marcas
-    0/1 de las últimas columnas de `u.item`, una por género en ese orden.
-    Solo se usan para mostrar: el modelo no ve los géneros (las dimensiones latentes emergen del entrenamiento).
+    Salen de la columna `genres` de `movies.csv`, separados por `|`, tal
+    como los escribe MovieLens (incluido `(no genres listed)`). Solo se usan
+    para mostrar: el modelo no ve los géneros (las dimensiones latentes emergen del entrenamiento).
     """
-    nombres_por_posicion: dict[int, str] = {}
-    with Path(ruta_u_genre).open(encoding="latin-1") as archivo:
-        for linea in archivo:
-            linea = linea.strip()
-            if not linea:
-                continue
-            nombre, posicion = linea.split("|")
-            nombres_por_posicion[int(posicion)] = nombre
-    n_generos = len(nombres_por_posicion)
-
     generos_por_id: dict[int, list[str]] = {}
-    with Path(ruta_u_item).open(encoding="latin-1") as archivo:
-        for linea in archivo:
-            linea = linea.strip()
-            if not linea:
-                continue
-            campos = linea.split("|")
-            marcas = campos[-n_generos:]
-            generos_por_id[int(campos[0])] = [
-                nombres_por_posicion[posicion]
-                for posicion, marca in enumerate(marcas)
-                if marca == "1"
-            ]
+    with Path(ruta_movies).open(encoding="utf-8", newline="") as archivo:
+        for registro in csv.DictReader(archivo):
+            generos_por_id[int(registro["movieId"])] = registro["genres"].split("|")
 
-    LOGGER.info("cargados los géneros de %d películas desde %s", len(generos_por_id), ruta_u_item)
+    LOGGER.info("cargados los géneros de %d películas desde %s", len(generos_por_id), ruta_movies)
 
     return generos_por_id
 
@@ -252,16 +226,16 @@ class DatosPreparados:
 
 
 def preparar_datos_movielens(
-    ruta_u_data: Path, ruta_u_item: Path, umbral: int, k: int
+    ruta_ratings: Path, ruta_movies: Path, umbral: int, k: int
 ) -> DatosPreparados:
     """Orquesta carga, filtro y títulos en un único punto de entrada.
 
     Encadena `cargar_calificaciones`, `filtrar_por_minimo` (con `umbral`,
     validado contra `k`), `cargar_titulos` y `construir_indice_a_titulo`.
     """
-    datos = cargar_calificaciones(ruta_u_data)
+    datos = cargar_calificaciones(ruta_ratings)
     datos_filtrados = filtrar_por_minimo(datos, umbral, k)
-    titulos_por_id = cargar_titulos(ruta_u_item)
+    titulos_por_id = cargar_titulos(ruta_movies)
     titulos_por_indice = construir_indice_a_titulo(
         datos_filtrados.id_pelicula_a_indice, titulos_por_id
     )

@@ -41,7 +41,7 @@ def test_se_saltea_con_el_motivo_esperado_si_falta_el_dataset(pytester):
 
 def test_corre_si_el_dataset_existe(pytester):
     _armar_proyecto_con_el_conftest_real(pytester)
-    (pytester.path / "data" / "ml-100k").mkdir(parents=True)
+    (pytester.path / "data" / "ml-latest-small").mkdir(parents=True)
 
     resultado = pytester.runpytest()
 

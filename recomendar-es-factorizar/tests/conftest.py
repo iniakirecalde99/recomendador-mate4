@@ -7,7 +7,7 @@ import pytest
 
 pytest_plugins = ["pytester"]  # habilita el fixture pytester para tests/test_conftest.py
 
-RUTA_MOVIELENS = Path(__file__).resolve().parent.parent / "data" / "ml-100k"
+RUTA_MOVIELENS = Path(__file__).resolve().parent.parent / "data" / "ml-latest-small"
 
 SEMILLA_FIJA = 42
 

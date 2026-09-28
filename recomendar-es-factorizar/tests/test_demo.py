@@ -56,27 +56,28 @@ def _escribir_dataset_chico(directorio):
     # calificaciones (no hace falta cascada de filtro). El usuario crudo 1
     # (índice 0) no calificó las películas 3 y 4, para que haya algo que
     # recomendar.
-    (directorio / "u.data").write_text(
-        "1\t1\t5\t100\n"
-        "1\t2\t4\t101\n"
-        "2\t1\t3\t102\n"
-        "2\t2\t2\t103\n"
-        "2\t3\t4\t104\n"
-        "3\t2\t5\t105\n"
-        "3\t3\t1\t106\n"
-        "3\t4\t3\t107\n"
-        "4\t1\t4\t108\n"
-        "4\t3\t2\t109\n"
-        "4\t4\t5\t110\n",
+    (directorio / "ratings.csv").write_text(
+        "userId,movieId,rating,timestamp\n"
+        "1,1,5.0,100\n"
+        "1,2,4.0,101\n"
+        "2,1,3.0,102\n"
+        "2,2,2.5,103\n"
+        "2,3,4.0,104\n"
+        "3,2,5.0,105\n"
+        "3,3,1.0,106\n"
+        "3,4,3.5,107\n"
+        "4,1,4.0,108\n"
+        "4,3,2.0,109\n"
+        "4,4,5.0,110\n",
         encoding="utf-8",
     )
-    (directorio / "u.item").write_bytes(
-        (
-            "1|Toy Story (1995)|01-Jan-1995||url1|0|0|0|1|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
-            "2|GoldenEye (1995)|01-Jan-1995||url2|0|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
-            "3|Nixon (1995)|01-Jan-1995||url3|0|0|0|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
-            "4|Copycat (1995)|01-Jan-1995||url4|0|0|0|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0\n"
-        ).encode("latin-1")
+    (directorio / "movies.csv").write_text(
+        "movieId,title,genres\n"
+        "1,Toy Story (1995),Adventure|Animation|Children|Comedy|Fantasy\n"
+        "2,GoldenEye (1995),Action|Adventure|Thriller\n"
+        "3,Nixon (1995),Drama\n"
+        '4,"Copycat, The (1995)",Crime|Drama|Horror|Mystery|Thriller\n',
+        encoding="utf-8",
     )
 
 
