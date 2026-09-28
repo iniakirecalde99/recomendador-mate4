@@ -1,4 +1,4 @@
-"""Script de descarga de MovieLens 100K."""
+"""Script de descarga de MovieLens latest-small."""
 
 import argparse
 import logging
@@ -11,14 +11,14 @@ from src.errores import ErrorDescargaDataset
 
 LOGGER = logging.getLogger(__name__)
 
-URL_MOVIELENS_100K = "https://files.grouplens.org/datasets/movielens/ml-100k.zip"
-NOMBRE_CARPETA_DATASET = "ml-100k"
+URL_MOVIELENS = "https://files.grouplens.org/datasets/movielens/ml-latest-small.zip"
+NOMBRE_CARPETA_DATASET = "ml-latest-small"
 
 
-def descargar_movielens(directorio_destino: Path, url: str = URL_MOVIELENS_100K) -> Path:
-    """Descarga MovieLens 100K a `directorio_destino` y lo descomprime.
+def descargar_movielens(directorio_destino: Path, url: str = URL_MOVIELENS) -> Path:
+    """Descarga MovieLens latest-small a `directorio_destino` y lo descomprime.
 
-    Si `directorio_destino/ml-100k/` ya existe, no vuelve a descargar. Si la
+    Si `directorio_destino/ml-latest-small/` ya existe, no vuelve a descargar. Si la
     descarga falla (por ejemplo sin red), lanza `ErrorDescargaDataset` con la
     URL para bajarlo a mano.
     """
@@ -30,7 +30,7 @@ def descargar_movielens(directorio_destino: Path, url: str = URL_MOVIELENS_100K)
         return directorio_dataset
 
     directorio_destino.mkdir(parents=True, exist_ok=True)
-    ruta_zip = directorio_destino / "ml-100k.zip"
+    ruta_zip = directorio_destino / f"{NOMBRE_CARPETA_DATASET}.zip"
 
     LOGGER.info("descargando MovieLens desde %s", url)
     try:
@@ -48,7 +48,7 @@ def descargar_movielens(directorio_destino: Path, url: str = URL_MOVIELENS_100K)
 
 def construir_parser() -> argparse.ArgumentParser:
     """CLI mínima: solo permite cambiar el directorio de destino (default `data/`)."""
-    parser = argparse.ArgumentParser(description="Descarga y descomprime MovieLens 100K.")
+    parser = argparse.ArgumentParser(description="Descarga y descomprime MovieLens latest-small.")
     parser.add_argument("--destino", type=Path, default=Path("data"))
     return parser
 

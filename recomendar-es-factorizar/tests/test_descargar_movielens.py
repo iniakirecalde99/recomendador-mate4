@@ -8,14 +8,14 @@ from urllib.error import URLError
 
 import pytest
 
-from scripts.descargar_movielens import descargar_movielens
+from scripts.descargar_movielens import URL_MOVIELENS, descargar_movielens
 from src.errores import ErrorDescargaDataset
 
-URL_DE_PRUEBA = "https://files.grouplens.org/datasets/movielens/ml-100k.zip"
+URL_DE_PRUEBA = "https://files.grouplens.org/datasets/movielens/ml-latest-small.zip"
 
 
 def test_descargar_movielens_informa_si_ya_existe(tmp_path, caplog):
-    directorio_dataset = tmp_path / "ml-100k"
+    directorio_dataset = tmp_path / "ml-latest-small"
     directorio_dataset.mkdir()
 
     with patch("scripts.descargar_movielens.urlretrieve") as mock_urlretrieve:
@@ -36,3 +36,7 @@ def test_descargar_movielens_falla_con_mensaje_y_url_si_no_hay_red(tmp_path):
             descargar_movielens(tmp_path, url=URL_DE_PRUEBA)
 
     assert URL_DE_PRUEBA in str(info_excepcion.value)
+
+
+def test_la_url_por_defecto_es_la_de_movielens_latest_small():
+    assert URL_MOVIELENS == URL_DE_PRUEBA
