@@ -19,8 +19,9 @@ import numpy as np
 from src import config
 from src.als import entrenar_als
 from src.datos import particionar, preparar_datos_movielens
-from src.errores import SistemaSingularError
-from src.modelo import inicializar_factores, predecir, sce
+from src.errores import DivergenciaError, SistemaSingularError
+from src.gradiente import entrenar_gd
+from src.modelo import ResultadoEntrenamiento, inicializar_factores, predecir, sce
 
 LOGGER = logging.getLogger(__name__)
 
@@ -196,6 +197,114 @@ def elegir_par(filas: list[FilaBarrido], tolerancia_empate: float) -> FilaBarrid
     return min(empatadas, key=lambda f: (f.k, f.sce_prueba))
 
 
+# --- Par elegido: reentrenamiento y verificación con GD ---
+
+
+def reentrenar_sobre_todo_omega(
+    R: np.ndarray,
+    M: np.ndarray,
+    k: int,
+    lambda_: float,
+    semilla_inicializacion: int,
+    escala_inicializacion: float,
+    epsilon: float,
+    max_iter: int,
+) -> ResultadoEntrenamiento:
+    """Vuelve a entrenar ALS con el par elegido sobre todo Ω, sin partición.
+
+    Sobre este modelo se evalúan los criterios 3 y 4. Parte
+    de la misma inicialización que el barrido (`semilla_inicializacion`).
+    """
+    m, n = R.shape
+    U0, V0 = inicializar_factores(
+        m=m, n=n, k=k, escala=escala_inicializacion,
+        generador=np.random.default_rng(semilla_inicializacion),
+    )
+    return entrenar_als(R, M, U0, V0, epsilon=epsilon, max_iter=max_iter, lambda_=lambda_)
+
+
+@dataclass
+class IntentoGD:
+    """Un intento de descenso de gradiente con un η dado.
+
+    Atributos:
+        eta: el η del intento.
+        divergio: si f dejó de ser finita (`DivergenciaError`).
+        iteracion_divergencia: en qué iteración divergió (None si no divergió).
+        iteraciones, motivo_corte, sce_prueba: del entrenamiento si no divergió
+            (NaN / "diverge" si divergió).
+    """
+
+    eta: float
+    divergio: bool
+    iteracion_divergencia: int | None
+    iteraciones: int
+    motivo_corte: str
+    sce_prueba: float
+
+
+@dataclass
+class VerificacionGD:
+    """Todos los intentos de GD con el par elegido; `fallo` si divergieron todos."""
+
+    intentos: list[IntentoGD]
+
+    @property
+    def fallo(self) -> bool:
+        """Falla del descenso de gradiente: todos los intentos divergieron."""
+        return all(intento.divergio for intento in self.intentos)
+
+
+def verificar_gd(
+    R: np.ndarray,
+    M_ent: np.ndarray,
+    M_prueba: np.ndarray,
+    k: int,
+    lambda_: float,
+    semilla_inicializacion: int,
+    escala_inicializacion: float,
+    eta: float,
+    epsilon: float,
+    max_iter: int,
+    max_reducciones_eta: int,
+) -> VerificacionGD:
+    """Descenso de gradiente con el par elegido sobre la partición.
+
+    Si f deja de ser finita, divide η por 2 y vuelve a empezar desde la misma
+    inicialización, hasta `max_reducciones_eta` veces. Cada intento queda
+    registrado. Si todos divergen, devuelve la verificación con `fallo`, sin
+    lanzar: el veredicto de la sección 9 se evalúa con ALS.
+    """
+    m, n = R.shape
+    U0, V0 = inicializar_factores(
+        m=m, n=n, k=k, escala=escala_inicializacion,
+        generador=np.random.default_rng(semilla_inicializacion),
+    )
+    intentos: list[IntentoGD] = []
+    for _ in range(max_reducciones_eta + 1):
+        try:
+            resultado = entrenar_gd(
+                R, M_ent, U0.copy(), V0.copy(),
+                eta=eta, epsilon=epsilon, max_iter=max_iter, lambda_=lambda_,
+            )
+        except DivergenciaError as error:
+            LOGGER.warning("GD con (k=%d, λ=%g) diverge con eta=%g: %s", k, lambda_, eta, error)
+            intentos.append(IntentoGD(
+                eta=eta, divergio=True, iteracion_divergencia=error.iteracion,
+                iteraciones=error.iteracion, motivo_corte="diverge", sce_prueba=math.nan,
+            ))
+            # η a la mitad, desde la misma inicialización.
+            eta = eta / 2
+            continue
+        intentos.append(IntentoGD(
+            eta=eta, divergio=False, iteracion_divergencia=None,
+            iteraciones=resultado.n_iteraciones, motivo_corte=resultado.motivo_corte,
+            sce_prueba=sce(R, M_prueba, resultado.U, resultado.V),
+        ))
+        break
+    return VerificacionGD(intentos=intentos)
+
+
 # --- CLI ---
 
 
@@ -221,6 +330,10 @@ def construir_parser() -> argparse.ArgumentParser:
     parser.add_argument("--escala-min", type=float, default=config.ESCALA_MIN)
     parser.add_argument("--escala-max", type=float, default=config.ESCALA_MAX)
     parser.add_argument("--tolerancia-empate", type=float, default=config.TOLERANCIA_EMPATE)
+    parser.add_argument("--eta", type=float, default=config.ETA_DEFECTO)
+    parser.add_argument(
+        "--max-reducciones-eta", type=int, default=config.MAX_REDUCCIONES_ETA
+    )
     return parser
 
 
@@ -265,6 +378,39 @@ def main(argv: list[str] | None = None) -> None:
         "sobre el mismo conjunto de prueba)",
         elegido.k, elegido.lambda_, elegido.sce_prueba,
     )
+    base = next(
+        (f for f in filas if f.k == 2 and f.lambda_ == 0.0 and f.error is None), None
+    )
+    if base is not None:
+        LOGGER.info("SCE de prueba de (k=2, λ=0): %.4f", base.sce_prueba)
+
+    final = reentrenar_sobre_todo_omega(
+        R, M, k=elegido.k, lambda_=elegido.lambda_,
+        semilla_inicializacion=args.semilla_inicializacion,
+        escala_inicializacion=config.ESCALA_INICIALIZACION_DEFECTO,
+        epsilon=args.epsilon, max_iter=args.max_iter,
+    )
+    fraccion, maximo = medir_fuera_de_rango(final.U, final.V, M, args.escala_min, args.escala_max)
+    LOGGER.info(
+        "Reentrenado sobre todo Ω: %d it (%s), f final %.4f, fuera de rango %.2f %%, "
+        "max|r̂| fuera de Ω %.2f",
+        final.n_iteraciones, final.motivo_corte, final.historial_f[-1], 100 * fraccion, maximo,
+    )
+
+    verificacion = verificar_gd(
+        R, M_ent, M_prueba, k=elegido.k, lambda_=elegido.lambda_,
+        semilla_inicializacion=args.semilla_inicializacion,
+        escala_inicializacion=config.ESCALA_INICIALIZACION_DEFECTO,
+        eta=args.eta, epsilon=args.epsilon, max_iter=args.max_iter,
+        max_reducciones_eta=args.max_reducciones_eta,
+    )
+    for intento in verificacion.intentos:
+        LOGGER.info(
+            "GD (eta=%g): %s, %d it, SCE de prueba %.4f",
+            intento.eta, intento.motivo_corte, intento.iteraciones, intento.sce_prueba,
+        )
+    if verificacion.fallo:
+        LOGGER.info("GD: falla (divergió en todos los intentos); el veredicto se evalúa con ALS.")
 
 
 if __name__ == "__main__":

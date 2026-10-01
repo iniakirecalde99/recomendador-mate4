@@ -124,3 +124,7 @@ GRILLA_LAMBDA: tuple[float, ...] = (0.0, 1.0, 5.0, 10.0, 20.0)
 SEMILLA_INICIALIZACION: int = SEMILLA_DEFECTO
 # Semilla de U₀, V₀ para todos los pares del barrido. Por referencia a SEMILLA_DEFECTO, no el literal 42, para que
 # (k = 2, λ = 0) arranque del mismo U₀, V₀ que main.
+
+MAX_REDUCCIONES_ETA: int = 3
+# Si GD diverge con el par elegido, η se divide por 2 hasta 3 veces;
+# cada intento se registra.

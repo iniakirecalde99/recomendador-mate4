@@ -12,10 +12,12 @@ from experimentos.regularizacion import (
     elegir_par,
     evaluar_criterios,
     medir_fuera_de_rango,
+    reentrenar_sobre_todo_omega,
+    verificar_gd,
 )
 from src import config
 from src.datos import particionar
-from src.errores import SistemaSingularError
+from src.errores import DivergenciaError, SistemaSingularError
 
 
 # --- Métricas ---
@@ -232,3 +234,91 @@ def test_config_de_la_grilla_y_las_semillas():
     assert config.GRILLA_LAMBDA == (0.0, 1.0, 5.0, 10.0, 20.0)
     assert config.SEMILLA_INICIALIZACION == config.SEMILLA_DEFECTO
     assert config.SEMILLA_PARTICION == config.SEMILLA_DEFECTO
+
+
+# --- Reentrenamiento sobre todo Ω y verificación con GD ---
+
+
+def test_reentrenar_sobre_todo_omega_usa_el_par_elegido_y_la_mascara_completa(monkeypatch):
+    R, M, M_ent, _ = _datos_chicos()
+    llamadas = []
+    entrenar_real = experimento.entrenar_als
+
+    def entrenar_que_registra(R_, M_, U0, V0, epsilon, max_iter, lambda_):
+        llamadas.append((M_.copy(), U0.shape[1], lambda_))
+        return entrenar_real(R_, M_, U0, V0, epsilon=epsilon, max_iter=max_iter, lambda_=lambda_)
+
+    monkeypatch.setattr(experimento, "entrenar_als", entrenar_que_registra)
+
+    resultado = reentrenar_sobre_todo_omega(
+        R, M, k=2, lambda_=5.0, semilla_inicializacion=7, escala_inicializacion=1.0,
+        epsilon=1e-6, max_iter=200,
+    )
+
+    (M_usada, k_usado, lambda_usado), = llamadas
+    assert np.array_equal(M_usada, M) and not np.array_equal(M_usada, M_ent)
+    assert (k_usado, lambda_usado) == (2, 5.0)
+    assert resultado.U.shape == (R.shape[0], 2)
+
+
+def _gd_que_diverge_las_primeras(n_divergencias, etas_usadas, inicios):
+    entrenar_real = experimento.entrenar_gd
+
+    def entrenar_gd_falso(R, M, U0, V0, eta, epsilon, max_iter, lambda_):
+        etas_usadas.append(eta)
+        inicios.append((U0.copy(), V0.copy()))
+        if len(etas_usadas) <= n_divergencias:
+            raise DivergenciaError(iteracion=3, eta=eta)
+        return entrenar_real(
+            R, M, U0, V0, eta=eta, epsilon=epsilon, max_iter=max_iter, lambda_=lambda_
+        )
+
+    return entrenar_gd_falso
+
+
+def _verificar(R, M_ent, M_prueba, max_reducciones=3):
+    return verificar_gd(
+        R, M_ent, M_prueba, k=2, lambda_=1.0, semilla_inicializacion=7,
+        escala_inicializacion=1.0, eta=0.01, epsilon=1e-6, max_iter=50,
+        max_reducciones_eta=max_reducciones,
+    )
+
+
+def test_verificar_gd_divide_eta_por_2_al_divergir_y_registra_cada_intento(monkeypatch):
+    R, _, M_ent, M_prueba = _datos_chicos()
+    etas, inicios = [], []
+    monkeypatch.setattr(experimento, "entrenar_gd", _gd_que_diverge_las_primeras(2, etas, inicios))
+
+    verificacion = _verificar(R, M_ent, M_prueba)
+
+    assert etas == [0.01, 0.005, 0.0025]
+    assert [i.eta for i in verificacion.intentos] == etas
+    assert [i.divergio for i in verificacion.intentos] == [True, True, False]
+    assert verificacion.intentos[0].iteracion_divergencia == 3
+    assert not verificacion.fallo
+    assert np.isfinite(verificacion.intentos[-1].sce_prueba)
+    # cada intento arranca de la misma inicialización
+    for U0, V0 in inicios[1:]:
+        assert np.array_equal(U0, inicios[0][0]) and np.array_equal(V0, inicios[0][1])
+
+
+def test_verificar_gd_se_rinde_tras_max_reducciones_y_registra_la_falla(monkeypatch):
+    R, _, M_ent, M_prueba = _datos_chicos()
+    etas, inicios = [], []
+    monkeypatch.setattr(
+        experimento, "entrenar_gd", _gd_que_diverge_las_primeras(99, etas, inicios)
+    )
+
+    verificacion = _verificar(R, M_ent, M_prueba, max_reducciones=3)  # no lanza
+
+    assert len(verificacion.intentos) == 3 + 1
+    assert all(i.divergio for i in verificacion.intentos)
+    assert verificacion.fallo
+
+
+def test_parser_toma_eta_y_max_reducciones_de_config():
+    args = construir_parser().parse_args([])
+
+    assert args.eta == config.ETA_DEFECTO
+    assert args.max_reducciones_eta == config.MAX_REDUCCIONES_ETA
+    assert config.MAX_REDUCCIONES_ETA == 3
