@@ -501,3 +501,82 @@ de prueba de k = 2, 3, 5 y 10 quedan todas a menos del 2 % entre sí. Pero, con
 esta partición y esta grilla, subir k no mejora la SCE de prueba lo suficiente
 como para superar la regla de empate, y el par elegido (k = 2) concentra
 todavía más las recomendaciones que main.
+
+**Nota (agregada después del veredicto, que no se modifica):** la regla de
+empate favorece el menor k, y el criterio 1 exige k > 2.
+Cuando las SCE de prueba de los distintos k quedan parecidas (como acá, a
+menos del 2 % entre sí con λ ≥ 5), la regla elige k = 2 y el criterio 1
+falla por construcción. Por eso este experimento no llegó a medir la
+concentración con k > 2. Eso queda para el experimento 2, exploratorio.
+
+## Experimento 2 (exploratorio): concentración con regularización y k > 2
+
+**Registrado antes de correr.** Es exploratorio: no modifica el veredicto del experimento de regularización ni el criterio de integración de la rama. No se integra nada a main.
+
+### Pregunta
+
+Con regularización, ¿k > 2 reduce la concentración de las recomendaciones?
+
+### Pares
+
+(k = 3, λ = 5), (k = 5, λ = 5) y (k = 10, λ = 10): los pares con k > 2 que en el experimento de
+regularización quedaron empatados (a menos del 1 % de la mejor SCE de prueba).
+
+### Método (igual que en el experimento de regularización)
+
+Para cada par: ALS sobre todo Ω (MovieLens latest-small, umbral=40: 321 × 534,
+38.891 calificaciones), desde `SEMILLA_INICIALIZACION`, con epsilon y
+max_iter de config; fracción de estimaciones fuera de [−0,5; 6] sobre los
+pares no observados y max|r̂|; concentración con
+`experimentos/concentracion.py` (`simular`): 3.000 usuarios simulados, entre
+5 y 10 de las 30 películas más calificadas, notas con la distribución real,
+sin centrado, mismo λ para el usuario simulado.
+
+Una sola corrida, con este comando (desde la raíz del repo):
+
+```
+python - <<'EOF'
+import logging
+from src import config
+from src.datos import preparar_datos_movielens
+from experimentos import concentracion
+from experimentos.regularizacion import medir_fuera_de_rango, reentrenar_sobre_todo_omega
+
+logging.disable(logging.WARNING)
+d = config.RUTA_DATOS_DEFECTO
+datos = preparar_datos_movielens(d / "ratings.csv", d / "movies.csv", config.UMBRAL_DEFECTO, 10)
+R, M = datos.calificaciones.R, datos.calificaciones.M
+notas = concentracion.notas_reales(d / "ratings.csv")
+for k, lambda_ in [(3, 5.0), (5, 5.0), (10, 10.0)]:
+    modelo = reentrenar_sobre_todo_omega(
+        R, M, k=k, lambda_=lambda_, semilla_inicializacion=config.SEMILLA_INICIALIZACION,
+        escala_inicializacion=config.ESCALA_INICIALIZACION_DEFECTO,
+        epsilon=config.EPSILON_DEFECTO, max_iter=config.MAX_ITER_DEFECTO)
+    fraccion, maximo = medir_fuera_de_rango(modelo.U, modelo.V, M, config.ESCALA_MIN, config.ESCALA_MAX)
+    c = concentracion.simular(
+        R, M, datos.titulos_por_indice, centrar=False, notas=notas, k=k,
+        epsilon=config.EPSILON_DEFECTO, max_iter=config.MAX_ITER_DEFECTO,
+        semilla=config.SEMILLA_INICIALIZACION, n_usuarios=concentracion.N_USUARIOS_DEFECTO,
+        min_calificadas=concentracion.MIN_CALIFICADAS_DEFECTO,
+        max_calificadas=concentracion.MAX_CALIFICADAS_DEFECTO,
+        n_a_calificar=config.N_A_CALIFICAR_DEFECTO, top_n=config.TOP_N_DEFECTO,
+        semilla_simulacion=concentracion.SEMILLA_SIMULACION_DEFECTO,
+        umbral_frecuente=concentracion.UMBRAL_FRECUENTE_DEFECTO, lambda_=lambda_)
+    print(f"k={k} λ={lambda_:g}: {modelo.n_iteraciones} it ({modelo.motivo_corte}), "
+          f"fuera de rango {100 * fraccion:.2f} %, max|r̂| {maximo:.2f}, "
+          f"{c.distintas_en_top_n} de {c.n_peliculas} en algún top-10, "
+          f"más frecuente {c.mas_frecuente} {100 * c.frecuencia_mas_frecuente:.1f} %, "
+          f"en > 20 %: {c.n_frecuentes}")
+EOF
+```
+
+### Criterio (fijado antes de correr)
+
+La respuesta es "sí" si **algún par** tiene **al menos 130 películas en
+algún top-10** y la **más frecuente en a lo sumo el 25 %** de los usuarios
+(los mismos umbrales del criterio 4). No se cambian los pares ni los
+umbrales después de correr.
+
+### Resultado
+
+(Pendiente: se completa con la salida de la corrida única.)
