@@ -605,3 +605,5 @@ top-10, bastante más que en main (44,5 %). La regularización achica los
 factores de las películas con pocas calificaciones y deja arriba a las muy
 calificadas y bien puntuadas, así que, medida por la más frecuente, la
 concentración no baja: sube. Las tres corridas tienen 0,00 % fuera de rango.
+
+Rama cerrada sin integrar. Ni centrado ni regularización reducen la concentración; main sigue con k = 2.
