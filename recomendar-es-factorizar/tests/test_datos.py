@@ -12,6 +12,7 @@ from src.datos import (
     cargar_titulos,
     construir_indice_a_titulo,
     filtrar_por_minimo,
+    particionar,
     preparar_datos_movielens,
 )
 from src.errores import ErrorDatosInsuficientes, UmbralInsuficienteError
@@ -205,3 +206,54 @@ def test_preparar_datos_movielens_integra_carga_filtro_y_titulos(tmp_path):
     assert datos.titulos_por_indice[idx_pelicula1] == "Toy Story (1995)"
     assert datos.titulos_por_indice[idx_pelicula2] == "GoldenEye (1995)"
     assert len(datos.titulos_por_indice) == 2
+
+
+# --- Partición entrenamiento/prueba ---
+
+
+def _mascara_aleatoria(semilla, m=30, n=40, densidad=0.3):
+    return np.random.default_rng(semilla).uniform(size=(m, n)) < densidad
+
+
+def test_particion_es_disjunta_y_su_union_es_omega():
+    M = _mascara_aleatoria(1)
+
+    M_ent, M_prueba = particionar(M, fraccion_prueba=0.2, generador=np.random.default_rng(5))
+
+    assert not np.any(M_ent & M_prueba)
+    assert np.array_equal(M_ent | M_prueba, M)
+    assert M_prueba.sum() > 0
+    # a lo sumo la fracción pedida (puede ser menos si hubo que pasar pares)
+    assert M_prueba.sum() <= round(0.2 * M.sum())
+
+
+def test_particion_es_reproducible_con_la_semilla():
+    M = _mascara_aleatoria(2)
+
+    a = particionar(M, fraccion_prueba=0.2, generador=np.random.default_rng(9))
+    b = particionar(M, fraccion_prueba=0.2, generador=np.random.default_rng(9))
+    c = particionar(M, fraccion_prueba=0.2, generador=np.random.default_rng(10))
+
+    assert np.array_equal(a[0], b[0]) and np.array_equal(a[1], b[1])
+    assert not np.array_equal(a[1], c[1])
+
+
+def test_particion_todo_usuario_y_pelicula_de_prueba_tiene_calificaciones_de_entrenamiento():
+    M = _mascara_aleatoria(3, densidad=0.1)  # rala: muchas filas/columnas con pocas calificaciones
+
+    M_ent, M_prueba = particionar(M, fraccion_prueba=0.5, generador=np.random.default_rng(4))
+
+    filas_prueba, columnas_prueba = np.nonzero(M_prueba)
+    assert np.all(M_ent[filas_prueba, :].any(axis=1))
+    assert np.all(M_ent[:, columnas_prueba].any(axis=0))
+
+
+def test_particion_pasa_a_entrenamiento_los_pares_que_dejarian_huerfano_a_un_usuario_o_pelicula():
+    # Con fracción 1 todo Ω se sortea a prueba: todos los usuarios y películas
+    # quedan sin entrenamiento, así que todos los pares vuelven a entrenamiento.
+    M = np.array([[True, True, False], [True, False, True]])
+
+    M_ent, M_prueba = particionar(M, fraccion_prueba=1.0, generador=np.random.default_rng(0))
+
+    assert np.array_equal(M_ent, M)
+    assert not M_prueba.any()

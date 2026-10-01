@@ -88,3 +88,13 @@ MIN_CALIFICACIONES_FRONT_DEFECTO: int = 5
 # resoluble pero queda mal determinado (u interpola exactamente esos k
 # datos); mismo criterio que el umbral del filtro, que exige bastante más
 # que k observaciones por fila.
+
+# --- Experimento de regularización (rama experimento/regularizacion) ---
+
+FRACCION_PRUEBA: float = 0.2
+# Fracción de Ω que va a prueba en la partición.
+
+SEMILLA_PARTICION: int = SEMILLA_DEFECTO
+# Semilla del sorteo de la partición. Por
+# referencia a SEMILLA_DEFECTO, no un literal: es una constante separada de
+# SEMILLA_INICIALIZACION, con su propio generador, que hoy comparte valor.

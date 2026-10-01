@@ -241,3 +241,41 @@ def preparar_datos_movielens(
     )
 
     return DatosPreparados(calificaciones=datos_filtrados, titulos_por_indice=titulos_por_indice)
+
+
+def particionar(
+    M: np.ndarray, fraccion_prueba: float, generador: np.random.Generator
+) -> tuple[np.ndarray, np.ndarray]:
+    """Parte Ω en entrenamiento y prueba.
+
+    Se aplica sobre la M ya filtrada por umbral. Sortea con `generador`
+    round(fraccion_prueba · |Ω|) pares de Ω, sin reposición, para prueba; el
+    resto queda en entrenamiento. Después pasa a entrenamiento todo par de
+    prueba cuyo usuario o película quedó sin calificaciones de
+    entrenamiento, así que el tamaño real de prueba puede ser menor que la
+    fracción pedida. R no se toca: devuelve las máscaras (M_ent, M_prueba),
+    disjuntas y con unión M.
+    """
+    filas, columnas = np.nonzero(M)
+    n_prueba = int(round(fraccion_prueba * len(filas)))
+    elegidos = generador.choice(len(filas), size=n_prueba, replace=False)
+
+    M_prueba = np.zeros_like(M, dtype=bool)
+    M_prueba[filas[elegidos], columnas[elegidos]] = True
+    M_ent = M & ~M_prueba
+
+    # Un par de prueba cuyo usuario o película quedó sin
+    # calificaciones de entrenamiento pasa a entrenamiento.
+    filas_sin_ent = ~M_ent.any(axis=1)
+    columnas_sin_ent = ~M_ent.any(axis=0)
+    a_entrenamiento = M_prueba & (filas_sin_ent[:, None] | columnas_sin_ent[None, :])
+    M_prueba = M_prueba & ~a_entrenamiento
+    M_ent = M_ent | a_entrenamiento
+
+    LOGGER.info(
+        "partición (fracción de prueba pedida=%.2f): entrenamiento=%d, prueba=%d "
+        "calificaciones (%d pares de prueba pasados a entrenamiento)",
+        fraccion_prueba, int(M_ent.sum()), int(M_prueba.sum()), int(a_entrenamiento.sum()),
+    )
+
+    return M_ent, M_prueba
