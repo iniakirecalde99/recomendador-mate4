@@ -425,4 +425,25 @@ esa referencia. El resultado se registra tal como salga.
 
 ### Resultado
 
-(Pendiente: se completa con la salida de la corrida única.)
+Corrida única de `python -m experimentos.usuarios_reales`. El modelo es el
+de main: ALS en 10 iteraciones (tolerancia), SCE 22.937,3886.
+
+| | usuarios simulados (referencia) | usuarios reales |
+|---|---:|---:|
+| películas en algún top-10 | 65 de 534 | **127 de 534** |
+| la más frecuente | Harry Potter and the Order of the Phoenix (2007), 44,5 % | **Casablanca (1942), 43,9 %** |
+| películas en el top-10 de más del 20 % de los usuarios | 23 | 20 |
+
+Top-5 más frecuentes con usuarios reales: Casablanca (1942) 43,9 %; Boondock
+Saints, The (2000) 43,3 %; Wallace & Gromit: The Wrong Trousers (1993)
+37,4 %; Princess Bride, The (1987) 34,6 %; 12 Angry Men (1957) 32,4 %.
+
+Lectura: con usuarios reales aparecen casi el doble de películas distintas
+(127 contra 65), pero la concentración en la parte de arriba es la misma: la
+más frecuente sigue en el top-10 de alrededor del 44 % de los usuarios, y unas
+20 películas aparecen en el top-10 de más de uno de cada cinco. Una parte de
+la diferencia en películas distintas puede venir de cómo se arman los dos
+grupos: cada usuario real calificó al menos 40 películas, que quedan
+excluidas de su top-10, mientras que los simulados califican solo entre 5 y
+10 de las 30 más calificadas. Con usuarios reales, la concentración de main
+se confirma: no es un artefacto de la simulación.
