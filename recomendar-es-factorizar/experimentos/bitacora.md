@@ -388,3 +388,116 @@ favoritas cambian, pero siguen siendo pocas. Subir k sin regularización no
 es una salida (ver la recalibración: k = 3 y k = 5 hacen explotar r̂
 fuera de Ω). Queda como limitación de k = 2 en la sección 8 del informe.
 `src/` sigue sin centrado.
+
+## Experimento de regularización (rama experimento/regularizacion)
+
+Corrida única de `python -m experimentos.regularizacion` con los defaults de
+`config.py` . Los criterios de éxito quedaron
+fijados en `config.py` antes de esta corrida y no se modificaron
+después. No se volvió a correr ni se cambió la grilla, las semillas ni los
+umbrales.
+
+### Configuración
+
+- Datos: MovieLens latest-small filtrado con umbral=40: 321 usuarios × 534
+  películas, 38.891 calificaciones (la misma matriz que main).
+- Partición: `FRACCION_PRUEBA` = 0,2, `SEMILLA_PARTICION` =
+  `SEMILLA_DEFECTO` (42). **Tamaño real: entrenamiento 31.113, prueba 7.778
+  calificaciones; 0 pares de prueba pasados a entrenamiento.**
+- Inicialización: `SEMILLA_INICIALIZACION` = `SEMILLA_DEFECTO` (42), la misma
+  para todos los pares; escala 1,0.
+- ALS: epsilon = 1, max_iter = 3000. GD: eta = 5e-4, `MAX_REDUCCIONES_ETA` = 3.
+- Garantía previa: con λ = 0 y sin partición, ALS da 22.937,3886
+  en 10 iteraciones y GD 23.045,8796 en 462, exactamente main.
+
+### Barrido de (k, λ) con ALS sobre Ω_ent
+
+f final es `f_regularizada` sobre Ω_ent; la SCE de prueba es la SCE pura
+sobre Ω_prueba; "fuera de rango" es el porcentaje de estimaciones fuera de
+[−0,5; 6] sobre los pares no observados. Todas las corridas cortaron por
+tolerancia y ninguna dio `SistemaSingularError`.
+
+| k | λ | iteraciones | f final | SCE de prueba | fuera de rango | max\|r̂\| fuera de Ω |
+|---:|---:|---:|---:|---:|---:|---:|
+| 2 | 0 | 13 | 18.106,3109 | 5.228,9695 | 0,02 % | 6,97 |
+| 2 | 1 | 144 | 21.419,9492 | 5.177,5757 | 0,00 % | 5,67 |
+| **2** | **5** | **52** | **34.107,0043** | **5.167,9731** | **0,00 %** | **5,53** |
+| 2 | 10 | 32 | 49.297,3143 | 5.352,1209 | 0,00 % | 5,54 |
+| 2 | 20 | 19 | 77.826,8796 | 6.100,4086 | 0,00 % | 5,52 |
+| 3 | 0 | 36 | 16.423,1544 | 5.579,0634 | 0,48 % | 27,79 |
+| 3 | 1 | 133 | 19.985,5080 | 5.257,6407 | 0,10 % | 9,54 |
+| 3 | 5 | 49 | 33.298,5114 | 5.133,7794 | 0,00 % | 5,41 |
+| 3 | 10 | 30 | 48.912,7114 | 5.272,1277 | 0,00 % | 5,43 |
+| 3 | 20 | 18 | 77.793,8609 | 6.067,7506 | 0,00 % | 5,50 |
+| 5 | 0 | 59 | 13.914,7042 | 11.072,4049 | 3,24 % | 77,44 |
+| 5 | 1 | 114 | 17.843,4763 | 5.622,9211 | 0,20 % | 8,49 |
+| 5 | 5 | 45 | 32.219,8865 | 5.157,8968 | 0,00 % | 5,74 |
+| 5 | 10 | 27 | 48.487,9221 | 5.207,7145 | 0,00 % | 5,49 |
+| 5 | 20 | 16 | 77.793,2338 | 6.064,2804 | 0,00 % | 5,50 |
+| 10 | 0 | 97 | 9.095,0835 | 28.650,8790 | 11,77 % | 341,14 |
+| 10 | 1 | 73 | 14.055,3089 | 7.173,9092 | 0,48 % | 10,41 |
+| 10 | 5 | 34 | 30.430,2769 | 5.255,1288 | 0,00 % | 6,29 |
+| 10 | 10 | 18 | 47.929,1652 | 5.151,2789 | 0,00 % | 5,52 |
+| 10 | 20 | 10 | 77.791,6786 | 6.066,6722 | 0,00 % | 5,50 |
+
+### Par elegido
+
+**(k = 2, λ = 5)**, con SCE de prueba 5.167,9731. Aclaración: esta SCE es
+optimista, porque la selección se hizo sobre el mismo conjunto de prueba.
+
+Aplicación de la regla de empate: la menor SCE de prueba es la de
+(3, 5), 5.133,7794. A menos del 1 % de ella (< 5.185,12) quedan (3, 5),
+(10, 10) 5.151,28, (5, 5) 5.157,90, (2, 5) 5.167,97 y (2, 1) 5.177,58. Gana
+el menor k, 2, y entre (2, 5) y (2, 1), la de menor SCE de prueba: (2, 5).
+Sin la regla de empate habría ganado (3, 5); esa variante no se evaluó.
+
+### Reentrenamiento sobre todo Ω (criterios 3 y 4)
+
+ALS con (k = 2, λ = 5) sobre las 38.891 calificaciones, desde
+`SEMILLA_INICIALIZACION`: 63 iteraciones (tolerancia), f final 38.980,8411,
+**0,00 % de estimaciones fuera de rango**, max|r̂| fuera de Ω = 5,56.
+
+### Verificación con descenso de gradiente
+
+GD con (k = 2, λ = 5) sobre la misma partición, desde la misma inicialización:
+
+| intento | η | resultado | iteraciones | SCE de prueba |
+|---:|---:|---|---:|---:|
+| 1 | 5e-4 | tolerancia | 475 | 5.198,5820 |
+
+No divergió: un solo intento, sin reducir η. Su SCE de prueba (5.198,58)
+queda 0,6 % por encima de la de ALS (5.167,97) con el mismo par.
+
+### Concentración
+
+`experimentos/concentracion.py` con el modelo de (k = 2, λ = 5) entrenado con
+ALS sobre todo Ω (`SEMILLA_INICIALIZACION`), notas con la distribución real,
+sin centrado, 3.000 usuarios simulados:
+
+| modelo | películas en algún top-10 | más frecuente |
+|---|---:|---|
+| main: (k = 2, λ = 0) | 65 de 534 | Harry Potter and the Order of the Phoenix (2007), 44,5 % |
+| elegido: (k = 2, λ = 5) | 49 de 534 | Casablanca (1942), 76,8 % |
+
+La regularización con k = 2 **aumenta** la concentración: menos películas
+distintas y una mucho más frecuente.
+
+### Veredicto
+
+| criterio | valor | umbral | cumple |
+|---|---|---|---|
+| 1. k > 2 | k = 2 | k > 2 | **no** |
+| 2. SCE de prueba menor que la de (2, 0) | 5.167,97 vs. 5.228,97 | menor | sí |
+| 3. Fuera de rango (modelo sobre todo Ω) | 0,00 % | ≤ 1 % | sí |
+| 4. Películas en algún top-10 y la más frecuente | 49; 76,8 % | ≥ 130; ≤ 25 % | **no** |
+
+**El experimento no es exitoso: fallan los criterios 1 y 4. La rama no se
+integra a main**.
+
+Lo que sí muestra: la regularización resuelve el problema de las estimaciones
+absurdas fuera de Ω. Con λ = 0, k = 10 llega a max|r̂| = 341 y 11,77 % fuera
+de rango; con λ ≥ 5, todos los k quedan en 0,00 % y max|r̂| ≤ 6,3, y las SCE
+de prueba de k = 2, 3, 5 y 10 quedan todas a menos del 2 % entre sí. Pero, con
+esta partición y esta grilla, subir k no mejora la SCE de prueba lo suficiente
+como para superar la regla de empate, y el par elegido (k = 2) concentra
+todavía más las recomendaciones que main.
