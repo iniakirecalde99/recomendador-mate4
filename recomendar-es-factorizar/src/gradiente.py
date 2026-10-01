@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from src.errores import DivergenciaError
-from src.modelo import ResultadoEntrenamiento, predecir, sce
+from src.modelo import ResultadoEntrenamiento, predecir, sce, validar_lambda
 
 LOGGER = logging.getLogger(__name__)
 
@@ -83,18 +83,22 @@ def descenso_gradiente(
 
 
 def gradiente_sce(
-    R: np.ndarray, M: np.ndarray, U: np.ndarray, V: np.ndarray
+    R: np.ndarray, M: np.ndarray, U: np.ndarray, V: np.ndarray, lambda_: float = 0.0
 ) -> tuple[np.ndarray, np.ndarray]:
     """Calcula ∇_U f y ∇_V f de la SCE, sin factor 1/2 (informe 3.4/6).
 
-    Con E = M ⊙ (R − U·Vᵀ) (error solo sobre Ω, cero fuera):
-    ∇_U f = −2·E·V, ∇_V f = −2·Eᵀ·U, ambos evaluados en el mismo (U, V)
-    recibido.
+    Devuelve el gradiente de `f_regularizada`,
+    que con λ = 0 (el default) es exactamente el de la SCE. Con
+    E = M ⊙ (R − U·Vᵀ) (error solo sobre Ω, cero fuera):
+    ∇_U f = −2·E·V + 2·λ·U, ∇_V f = −2·Eᵀ·U + 2·λ·V, ambos evaluados en el
+    mismo (U, V) recibido. Lanza `LambdaNegativoError` si λ < 0.
     """
+    validar_lambda(lambda_)
     # Informe 3.4/6: gradientes de la SCE respecto de U y de V.
+    # + 2·λ·U y + 2·λ·V por el término λ.
     E = np.where(M, R - predecir(U, V), 0.0)
-    grad_U = -2 * E @ V
-    grad_V = -2 * E.T @ U
+    grad_U = -2 * E @ V + 2 * lambda_ * U
+    grad_V = -2 * E.T @ U + 2 * lambda_ * V
     return grad_U, grad_V
 
 

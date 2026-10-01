@@ -5,9 +5,9 @@ import logging
 import numpy as np
 import pytest
 
-from src.errores import DivergenciaError
+from src.errores import DivergenciaError, LambdaNegativoError
 from src.gradiente import entrenar_gd, gradiente_sce
-from src.modelo import inicializar_factores, sce
+from src.modelo import f_regularizada, inicializar_factores, sce
 
 
 def _gradiente_numerico(f, X, h=1e-6):
@@ -115,3 +115,54 @@ def test_entrenar_gd_loguea_debug_por_iteracion_e_info_cada_100_y_resumen(
     assert len(mensajes_debug) == 250
     assert len(mensajes_info_iteracion) == 2
     assert len(mensajes_resumen) == 1
+
+
+# --- λ en gradiente_sce ---
+
+
+def test_gradiente_con_lambda_coincide_con_diferencias_finitas(
+    matriz_pequena_aleatoria, generador_fijo
+):
+    # Mismo método que el test del gradiente de la SCE, contra diferencias finitas de f_regularizada.
+    R, M = matriz_pequena_aleatoria
+    m, n = R.shape
+    k = 2
+    U = generador_fijo.uniform(0.0, 1.0, size=(m, k))
+    V = generador_fijo.uniform(0.0, 1.0, size=(n, k))
+    lambda_ = 0.8
+
+    grad_U, grad_V = gradiente_sce(R, M, U, V, lambda_=lambda_)
+
+    grad_U_numerico = _gradiente_numerico(lambda U_: f_regularizada(R, M, U_, V, lambda_), U)
+    grad_V_numerico = _gradiente_numerico(lambda V_: f_regularizada(R, M, U, V_, lambda_), V)
+
+    error_relativo_U = np.linalg.norm(grad_U - grad_U_numerico) / np.linalg.norm(grad_U_numerico)
+    error_relativo_V = np.linalg.norm(grad_V - grad_V_numerico) / np.linalg.norm(grad_V_numerico)
+
+    assert error_relativo_U < 1e-5
+    assert error_relativo_V < 1e-5
+    # con λ > 0 el gradiente no es el de la SCE pura
+    grad_U_sin_lambda, _ = gradiente_sce(R, M, U, V)
+    assert not np.allclose(grad_U, grad_U_sin_lambda)
+
+
+def test_gradiente_con_lambda_cero_es_identico_al_actual(matriz_pequena_aleatoria, generador_fijo):
+    R, M = matriz_pequena_aleatoria
+    m, n = R.shape
+    U = generador_fijo.uniform(0.0, 1.0, size=(m, 2))
+    V = generador_fijo.uniform(0.0, 1.0, size=(n, 2))
+
+    grad_U, grad_V = gradiente_sce(R, M, U, V, lambda_=0.0)
+    grad_U_actual, grad_V_actual = gradiente_sce(R, M, U, V)
+
+    # igualdad exacta, no aproximada
+    assert np.array_equal(grad_U, grad_U_actual)
+    assert np.array_equal(grad_V, grad_V_actual)
+
+
+def test_gradiente_con_lambda_negativo_lanza_lambda_negativo_error(matriz_pequena_aleatoria):
+    R, M = matriz_pequena_aleatoria
+    m, n = R.shape
+
+    with pytest.raises(LambdaNegativoError, match=r"-1"):
+        gradiente_sce(R, M, np.ones((m, 2)), np.ones((n, 2)), lambda_=-1.0)
