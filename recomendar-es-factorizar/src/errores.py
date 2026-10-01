@@ -160,3 +160,21 @@ class MinimoCalificacionesInsuficienteError(ErrorFactorizacion):
         super().__init__(mensaje)
         self.min_calificaciones = min_calificaciones
         self.k = k
+
+
+class LambdaNegativoError(ErrorFactorizacion, ValueError):
+    """Se pidió un λ negativo para la regularización (λ ≥ 0).
+
+    Hereda también de `ValueError` porque es un argumento con valor inválido.
+
+    Args:
+        lambda_: el valor de λ recibido.
+    """
+
+    def __init__(self, lambda_: float) -> None:
+        mensaje = (
+            f"λ tiene que ser >= 0, pero se recibió "
+            f"lambda_={lambda_}."
+        )
+        super().__init__(mensaje)
+        self.lambda_ = lambda_

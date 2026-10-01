@@ -5,13 +5,15 @@ import time
 
 import numpy as np
 
-from src.errores import SistemaSingularError
+from src.errores import LambdaNegativoError, SistemaSingularError
 from src.modelo import ResultadoEntrenamiento, sce
 
 LOGGER = logging.getLogger(__name__)
 
 
-def resolver_factor(R: np.ndarray, M: np.ndarray, F: np.ndarray) -> np.ndarray:
+def resolver_factor(
+    R: np.ndarray, M: np.ndarray, F: np.ndarray, lambda_: float = 0.0
+) -> np.ndarray:
     """Resuelve por fila las ecuaciones normales de mínimos cuadrados (informe 3.5).
 
     Para cada fila i de R, toma las filas de F correspondientes a las
@@ -20,10 +22,18 @@ def resolver_factor(R: np.ndarray, M: np.ndarray, F: np.ndarray) -> np.ndarray:
     con (R.T, M.T, U) calcula el paso de V (misma función, sin duplicar
     lógica).
 
-    Lanza `SistemaSingularError` si las ecuaciones normales de alguna fila
-    resultan singulares (por ejemplo, con menos observaciones que columnas
-    de F).
+    Con `lambda_` > 0 resuelve las ecuaciones normales regularizadas
+    (F_iᵀ F_i + λ I) x = F_iᵀ r_i; con el
+    default 0 es exactamente el cálculo de main.
+
+    Lanza `LambdaNegativoError` (también `ValueError`) si `lambda_` < 0, y
+    `SistemaSingularError` si las ecuaciones normales de alguna fila, ya
+    regularizadas, resultan singulares (por ejemplo, con λ = 0 y menos
+    observaciones que columnas de F).
     """
+    if lambda_ < 0:
+        raise LambdaNegativoError(lambda_)
+
     m = R.shape[0]
     k = F.shape[1]
     factor_nuevo = np.empty((m, k))
@@ -34,7 +44,9 @@ def resolver_factor(R: np.ndarray, M: np.ndarray, F: np.ndarray) -> np.ndarray:
         r_obs = R[i, columnas_obs]
 
         # Informe 3.5: ecuaciones normales de mínimos cuadrados por fila.
-        A = F_obs.T @ F_obs
+        # + λ I; la singularidad se evalúa sobre
+        # esta A ya regularizada.
+        A = F_obs.T @ F_obs + lambda_ * np.eye(k)
         b = F_obs.T @ r_obs
         try:
             factor_nuevo[i, :] = np.linalg.solve(A, b)
