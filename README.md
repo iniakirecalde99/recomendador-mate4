@@ -8,8 +8,6 @@ ejecutable de un informe escrito: cada fórmula implementada coincide con la del
 informe, y todo el álgebra está escrita con numpy, sin librerías que
 factoricen o recomienden.
 
-El proyecto está en la carpeta [`recomendar-es-factorizar/`](recomendar-es-factorizar/).
-
 ## Cómo correrlo
 
 Requiere Python 3.11 o superior.
