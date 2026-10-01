@@ -882,3 +882,47 @@ Notas para leer el resultado, sin cambiar el veredicto:
   ordenar sin cⱼ ataca justo lo que los experimentos anteriores no
   resolvían. Nada de esto entra al informe ni a main sin aprobación de la
   cátedra.
+
+## Experimento 6: sesgos con las reglas de main (k = 2, λ = 0), rama experimento/sesgos
+
+**Registrado antes de correr.** No toca `src/` ni el veredicto del experimento de sesgos. No se
+integra nada a main.
+
+### Pregunta
+
+¿El modelo con sesgos cumple el criterio de éxito sin regularización y con
+k = 2, es decir, con las reglas de main?
+
+### Método
+
+El mismo procedimiento que en el experimento de sesgos, con un solo par:
+`entrenar_als_sesgos` con k = 2 y λ = 0, sobre la misma partición
+(`SEMILLA_PARTICION`, `FRACCION_PRUEBA`: 31.113 / 7.778), desde
+`SEMILLA_INICIALIZACION`, con `EPSILON_DEFECTO` y `MAX_ITER_DEFECTO`.
+
+- Sobre la partición: SCE de prueba, fuera de rango y precisión@10 de A y B,
+  contra la misma línea de base (main: k = 2, λ = 0, sin sesgos, sobre Ω_ent).
+- Reentrenado sobre todo Ω (μ de todo Ω): fuera de rango y concentración con
+  los 321 usuarios reales, con A y con B.
+- Referencia, fuera del criterio: 3.000 usuarios simulados con notas reales.
+
+Comando de la corrida única (el script del experimento de sesgos con una grilla de un
+solo par; el filtro valida el umbral contra k = 2, así que la matriz es la
+misma, 321 × 534):
+
+```
+python -m experimentos.sesgos --grilla-k 2 --grilla-lambda 0
+```
+
+### Criterio (fijado antes de correr)
+
+Los mismos cuatro, con los mismos umbrales
+(`MAX_FRECUENCIA_SESGOS` = 0,25, `MIN_PELICULAS_DISTINTAS_SESGOS` = 127,
+precisión ≥ línea de base, `MAX_FRACCION_FUERA_DE_RANGO_SESGOS` = 0,01).
+Éxito si A o B cumple los cuatro. Si aparece `SistemaSingularError` (con
+λ = 0 el sistema de cada fila no está regularizado), la corrida termina con
+ese error y se registra como resultado.
+
+### Resultado
+
+(Pendiente: se completa con la salida de la corrida única.)
