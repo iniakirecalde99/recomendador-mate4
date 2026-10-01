@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from src.errores import DivergenciaError
-from src.modelo import ResultadoEntrenamiento, predecir, sce, validar_lambda
+from src.modelo import ResultadoEntrenamiento, f_regularizada, predecir, validar_lambda
 
 LOGGER = logging.getLogger(__name__)
 
@@ -110,6 +110,7 @@ def entrenar_gd(
     eta: float,
     epsilon: float,
     max_iter: int,
+    lambda_: float = 0.0,
 ) -> ResultadoEntrenamiento:
     """Descenso de gradiente completo sobre la factorización (informe 3.4 y 6).
 
@@ -117,24 +118,25 @@ def entrenar_gd(
     actualiza ambos simultáneamente: U ← U − eta·∇_U f, V ← V − eta·∇_V f
     (nunca actualizar U y recién ahí calcular el
     gradiente de V con la U nueva, eso lo convertiría en un método
-    alternado). Usa `modelo.sce` para el criterio de corte.
+    alternado). Usa `modelo.f_regularizada` para el criterio de corte y
+    `gradiente_sce(..., λ)` para los gradientes (con λ = 0, el default, es exactamente main).
     """
     inicio = time.perf_counter()
 
     U, V = U0, V0
-    f_actual = sce(R, M, U, V)
+    f_actual = f_regularizada(R, M, U, V, lambda_)
     historial_f = [f_actual]
 
     n_iteraciones = 0
     motivo_corte = "max_iter"
     while n_iteraciones < max_iter:
-        grad_U, grad_V = gradiente_sce(R, M, U, V)
+        grad_U, grad_V = gradiente_sce(R, M, U, V, lambda_)
         # Informe 6: x(t+1) = x(t) - eta * grad f(x(t)), U y V con el
         # gradiente de la iteración t
         U = U - eta * grad_U
         V = V - eta * grad_V
 
-        f_siguiente = sce(R, M, U, V)
+        f_siguiente = f_regularizada(R, M, U, V, lambda_)
         n_iteraciones += 1
 
         if not np.isfinite(f_siguiente):

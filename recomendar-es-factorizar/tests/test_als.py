@@ -7,7 +7,7 @@ import pytest
 
 from src.als import entrenar_als, resolver_factor
 from src.errores import SistemaSingularError
-from src.modelo import inicializar_factores
+from src.modelo import f_regularizada, inicializar_factores
 
 
 def test_resolver_factor_transpuesto_coincide_con_calculo_manual_de_v():
@@ -206,3 +206,33 @@ def test_resolver_factor_con_lambda_negativo_lanza_value_error_con_el_valor():
 
     with pytest.raises(ValueError, match=r"-1"):
         resolver_factor(R, M, F, lambda_=-1.0)
+
+
+# --- λ en entrenar_als ---
+
+
+def test_historial_de_f_de_als_con_lambda_no_crece(matriz_ejemplo_informe, generador_fijo):
+    R, M = matriz_ejemplo_informe
+    U0, V0 = inicializar_factores(m=4, n=5, k=2, escala=1.0, generador=generador_fijo)
+    lambda_ = 0.5
+
+    resultado = entrenar_als(R, M, U0, V0, epsilon=1e-8, max_iter=100, lambda_=lambda_)
+
+    historial = np.array(resultado.historial_f)
+    assert np.all(np.diff(historial) <= 1e-9)  # cada paso minimiza f exactamente
+    # historial_f guarda f_regularizada, no la SCE pura
+    assert historial[-1] == pytest.approx(
+        f_regularizada(R, M, resultado.U, resultado.V, lambda_)
+    )
+
+
+def test_entrenar_als_con_lambda_cero_es_identico_al_actual(matriz_ejemplo_informe, generador_fijo):
+    R, M = matriz_ejemplo_informe
+    U0, V0 = inicializar_factores(m=4, n=5, k=2, escala=1.0, generador=generador_fijo)
+
+    con_lambda = entrenar_als(R, M, U0.copy(), V0.copy(), epsilon=1e-8, max_iter=50, lambda_=0.0)
+    actual = entrenar_als(R, M, U0.copy(), V0.copy(), epsilon=1e-8, max_iter=50)
+
+    assert np.array_equal(con_lambda.U, actual.U)
+    assert np.array_equal(con_lambda.V, actual.V)
+    assert con_lambda.historial_f == actual.historial_f

@@ -166,3 +166,28 @@ def test_gradiente_con_lambda_negativo_lanza_lambda_negativo_error(matriz_pequen
 
     with pytest.raises(LambdaNegativoError, match=r"-1"):
         gradiente_sce(R, M, np.ones((m, 2)), np.ones((n, 2)), lambda_=-1.0)
+
+
+# --- λ en entrenar_gd ---
+
+
+def test_iteracion_gd_con_lambda_es_simultanea_contra_referencia(
+    matriz_pequena_aleatoria, generador_fijo
+):
+    R, M = matriz_pequena_aleatoria
+    m, n = R.shape
+    U0 = generador_fijo.uniform(0.0, 1.0, size=(m, 2))
+    V0 = generador_fijo.uniform(0.0, 1.0, size=(n, 2))
+    eta = 0.01
+    lambda_ = 0.8
+
+    resultado = entrenar_gd(
+        R, M, U0.copy(), V0.copy(), eta=eta, epsilon=1e-12, max_iter=1, lambda_=lambda_
+    )
+
+    grad_U_ref, grad_V_ref = gradiente_sce(R, M, U0, V0, lambda_=lambda_)
+    np.testing.assert_allclose(resultado.U, U0 - eta * grad_U_ref)
+    np.testing.assert_allclose(resultado.V, V0 - eta * grad_V_ref)
+    assert resultado.historial_f[-1] == pytest.approx(
+        f_regularizada(R, M, resultado.U, resultado.V, lambda_)
+    )

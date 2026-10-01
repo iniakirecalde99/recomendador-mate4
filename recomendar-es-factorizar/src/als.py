@@ -6,7 +6,7 @@ import time
 import numpy as np
 
 from src.errores import SistemaSingularError
-from src.modelo import ResultadoEntrenamiento, sce, validar_lambda
+from src.modelo import ResultadoEntrenamiento, f_regularizada, validar_lambda
 
 LOGGER = logging.getLogger(__name__)
 
@@ -62,17 +62,20 @@ def entrenar_als(
     V0: np.ndarray,
     epsilon: float,
     max_iter: int,
+    lambda_: float = 0.0,
 ) -> ResultadoEntrenamiento:
     """Ejecuta ALS alternando el paso de U y V (informe 3.5 y 5).
 
-    Parte de U0, V0 y en cada iteración alterna `resolver_factor(R, M, V)` y
-    `resolver_factor(R.T, M.T, U)`, usando `modelo.sce` para calcular f,
-    hasta que |f(t+1) − f(t)| < epsilon o se alcanza `max_iter`.
+    Parte de U0, V0 y en cada iteración alterna `resolver_factor(R, M, V, λ)`
+    y `resolver_factor(R.T, M.T, U, λ)`, usando `modelo.f_regularizada` para
+    calcular f (con λ = 0, el default, es la
+    SCE de main), hasta que |f(t+1) − f(t)| < epsilon o se alcanza
+    `max_iter`.
     """
     inicio = time.perf_counter()
 
     U, V = U0, V0
-    f_actual = sce(R, M, U, V)
+    f_actual = f_regularizada(R, M, U, V, lambda_)
     historial_f = [f_actual]
 
     n_iteraciones = 0
@@ -80,10 +83,10 @@ def entrenar_als(
     while n_iteraciones < max_iter:
         # Informe 3.5/5: alternar el paso de U y el paso de V (misma función,
         # llamada con R.T y M.T para V).
-        U = resolver_factor(R, M, V)
-        V = resolver_factor(R.T, M.T, U)
+        U = resolver_factor(R, M, V, lambda_)
+        V = resolver_factor(R.T, M.T, U, lambda_)
 
-        f_siguiente = sce(R, M, U, V)
+        f_siguiente = f_regularizada(R, M, U, V, lambda_)
         n_iteraciones += 1
         historial_f.append(f_siguiente)
 
