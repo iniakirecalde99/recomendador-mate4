@@ -925,4 +925,62 @@ ese error y se registra como resultado.
 
 ### Resultado
 
-(Pendiente: se completa con la salida de la corrida única.)
+Corrida única del comando registrado. Matriz 321 × 534. No apareció
+`SistemaSingularError`.
+
+**Sobre la partición** (μ de Ω_ent):
+
+| k | λ | iteraciones | f final | SCE de prueba | fuera de rango | max\|r̂\| fuera de Ω | precisión@10 A | precisión@10 B |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2 | 0 | 34 | 16.390,9853 | 5.618,2793 | 0,55 % | 15,49 | 0,0984 | 0,0379 |
+
+| | precisión@10 (partición) |
+|---|---:|
+| línea de base (main) | 0,1116 |
+| A (r̂ completo) | 0,0984 |
+| B (Uᵢ·Vⱼ) | 0,0379 |
+
+**Reentrenado sobre todo Ω** (μ = 3,6792): 46 iteraciones (tolerancia), f
+final 21.029,0580, **0,33 % fuera de rango**, max|r̂| fuera de Ω = 12,95.
+
+Concentración con los 321 usuarios reales:
+
+| ordenamiento | películas en algún top-10 | más frecuente | en > 20 % | promedio de r̂ recomendado |
+|---|---:|---|---:|---:|
+| A | 180 de 534 | Deadpool (2016), 34,3 % | 8 | 4,595 |
+| B | 153 de 534 | Deadpool (2016), 43,9 % | 11 | 4,188 |
+
+Top-5 de A: Deadpool (2016) 34,3 %; Spirited Away (2001) 29,6 %; Boondock
+Saints, The (2000) 26,8 %; Unforgiven (1992) 23,7 %; Casablanca (1942) 23,1 %.
+
+Top-5 de B: Deadpool (2016) 43,9 %; First Knight (1995) 31,5 %; Maltese
+Falcon, The (1941) 27,4 %; M*A*S*H (1970) 24,9 %; Mad Max: Fury Road (2015)
+24,3 %.
+
+Referencia, fuera del criterio (3.000 usuarios simulados con notas reales):
+
+| ordenamiento | películas en algún top-10 | más frecuente | en > 20 % |
+|---|---:|---|---:|
+| A | 135 de 534 | Deadpool (2016), 38,8 % | 12 |
+| B | 75 de 534 | Deadpool (2016), 38,5 % | 14 |
+
+**Veredicto:**
+
+| criterio | A | B | umbral |
+|---|---|---|---|
+| 1. la más frecuente en a lo sumo el 25 % | 34,3 % — **no** | 43,9 % — **no** | ≤ 25 % |
+| 2. películas distintas | 180 — sí | 153 — sí | ≥ 127 |
+| 3. precisión@10 ≥ línea de base | 0,0984 — **no** | 0,0379 — **no** | ≥ 0,1116 |
+| 4. fuera de rango | 0,33 % — sí | 0,33 % — sí | ≤ 1 % |
+
+**No exitoso: ni A ni B cumplen los cuatro (los dos fallan los criterios 1 y
+3).** Con las reglas de main (k = 2, sin regularización), agregar sesgos no
+alcanza.
+
+Lectura: sin λ, los sesgos y los factores de las películas con pocas
+calificaciones quedan sin freno: una sola película (Deadpool) pasa a dominar
+los top-10 con los dos ordenamientos, la precisión cae por debajo de la de
+main (en B, a un tercio) y el fuera de rango sube de 0,00 % a 0,33 %
+(max|r̂| de 5,51 a 12,95). Comparado con el experimento de sesgos (k = 20, λ = 10), el resultado
+de B depende de la regularización: la mejora de la concentración con B no
+viene de los sesgos solos.
