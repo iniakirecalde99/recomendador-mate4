@@ -313,3 +313,78 @@ de 5, que es la calificación máxima.
   umbrales; entre 36 % y 42 % del 2000 en adelante). Igual aparecen en las
   recomendaciones películas de 2000 a 2008, que con 100K (hasta 1998) no
   existían.
+
+## Experimento de concentración de las recomendaciones con k = 2 (centrado descartado)
+
+### Objetivo
+
+Medir cuánto se concentran las recomendaciones con k = 2 (con el dataset
+anterior se notaba que la página recomendaba Titanic casi siempre, aunque
+se cambiaran las calificaciones) y probar si centrar las calificaciones
+restando el promedio global μ lo corrige.
+
+Criterio de adopción, fijado antes de correr: adoptar el centrado solo si la
+cantidad de películas que aparecen en algún top-10 sube claramente respecto
+de 65 y la más frecuente baja claramente del 46 %. Si la mejora es marginal,
+se deja como limitación de k = 2 en la sección 8 del informe.
+
+### Método
+
+- Script: `experimentos/concentracion.py` (`python -m experimentos.concentracion`;
+  parámetros como argumentos, con defaults de `config.py` y constantes del
+  propio script). El centrado vive solo en ese script: `src/` no centra.
+- Datos y modelo: MovieLens latest-small con los defaults de la recalibración (umbral=40,
+  k=2, epsilon=1, semilla 42): 321 usuarios × 534 películas. ALS sobre R
+  (sin centrado) o sobre R − μ (con centrado, μ = promedio de las
+  calificaciones observadas en Ω = 3,679).
+- Usuarios simulados: 3.000 (semilla de simulación 0). Cada uno califica
+  entre 5 y 10 de las 30 películas más calificadas (las mismas que ofrece la
+  página). Su vector u se resuelve con V fija (`resolver_factor`, informe 5),
+  con sus notas − μ cuando hay centrado; la predicción es μ + Vⱼ·u. Se cuenta
+  en qué top-10 (sin las ya calificadas) aparece cada película.
+- Dos distribuciones de notas: uniforme (enteros 1 a 5 equiprobables,
+  promedio 3) y real (notas de `ratings.csv` redondeadas hacia arriba a
+  enteros, promedio 3,65). La variante real se agregó porque con notas
+  uniformes todos los usuarios simulados quedan por debajo de μ y el
+  centrado los trata como "exigentes", lo que sesga la comparación.
+
+### Resultados
+
+| notas | centrado | SCE ALS (iter) | max\|r̂\| fuera Ω | distintas en algún top-10 | más frecuente | frec. | películas en > 20 % de los top-10 | ángulo de u p5 / p50 / p95 |
+|---|---|---:|---:|---:|---|---:|---:|---|
+| uniforme | no | 22.937 (10) | 6,39 | 65 de 534 | Harry Potter and the Order of the Phoenix (2007) | 45,5 % | 19 | 6° / 44° / 89° |
+| uniforme | sí (μ = 3,679) | 23.573 (8) | 6,03 | 77 de 534 | Batman & Robin (1997) | 52,4 % | 18 | −167° / −96° / 56° |
+| real | no | 22.937 (10) | 6,39 | 65 de 534 | Harry Potter and the Order of the Phoenix (2007) | 44,5 % | 23 | 18° / 44° / 75° |
+| real | sí (μ = 3,679) | 23.573 (8) | 6,03 | 80 de 534 | Nutty Professor, The (1996) | 38,4 % | 21 | −172° / 1° / 171° |
+
+Top-5 más frecuentes de cada corrida:
+
+- uniforme, sin centrado: Harry Potter and the Order of the Phoenix 46 %; 10 Things I Hate About You 43 %; The Patriot 42 %; The Chronicles of Narnia: The Lion, the Witch and the Wardrobe 38 %; Chinatown 33 %.
+- uniforme, con centrado: Batman & Robin 52 %; The Flintstones 51 %; Wild Wild West 50 %; Fantasia 47 %; Mortal Kombat 47 %.
+- real, sin centrado: Harry Potter and the Order of the Phoenix 45 %; 10 Things I Hate About You 37 %; The Patriot 34 %; How to Train Your Dragon 34 %; The Boondock Saints 33 %.
+- real, con centrado: The Nutty Professor 38 %; Coneheads 38 %; The Maltese Falcon 35 %; Beverly Hills Cop III 35 %; Chinatown 35 %.
+
+Referencia con el dataset anterior (MovieLens 100K, umbral=50, k=2, notas
+uniformes, misma simulación): 63 de 560 películas en algún top-10; Titanic
+en el 45,7 % de los top-10, sin estar entre las 30 para calificar (no se la
+podía excluir calificándola).
+
+### Decisión
+
+**El centrado no se adopta.** Con la simulación pedida (notas uniformes), la
+cantidad de películas distintas sube poco (65 → 77) y la más frecuente
+empeora (45,5 % → 52,4 %). Con notas reales mejora algo (65 → 80; 44,5 % →
+38,4 %), pero sigue siendo marginal: 80 de 534 películas es un 15 %, y 21
+películas siguen apareciendo en el top-10 de más del 20 % de los usuarios.
+Además, centrar empeora el ajuste: la SCE de ALS pasa de 22.937 a 23.573.
+
+**La limitación es k = 2.** Con dos factores, cada película es un punto Vⱼ
+del plano y la predicción r̂ⱼ = Vⱼ · u es su proyección sobre la dirección
+de u, así que para cualquier u ganan las películas del borde exterior de la
+nube de puntos. El centrado arregla otra causa, que u quede siempre en un
+abanico angosto porque todas las notas son positivas (sin centrar, de 6° a
+89°; centrado, casi toda la vuelta). Pero no cambia esa geometría: las
+favoritas cambian, pero siguen siendo pocas. Subir k sin regularización no
+es una salida (ver la recalibración: k = 3 y k = 5 hacen explotar r̂
+fuera de Ω). Queda como limitación de k = 2 en la sección 8 del informe.
+`src/` sigue sin centrado.
