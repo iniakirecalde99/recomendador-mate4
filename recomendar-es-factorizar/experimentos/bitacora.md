@@ -760,3 +760,125 @@ grupo de películas comerciales poco valoradas: con k = 2, restar ū mueve la
 dirección de u de los usuarios nuevos hacia una zona donde gana otro borde
 de la nube de V. Es la misma limitación geométrica de k = 2 que en los
 experimentos anteriores.
+
+## Experimento de sesgos (rama experimento/sesgos)
+
+Corrida única de `python -m experimentos.sesgos` con los defaults de
+`config.py` .
+El criterio y `UMBRAL_RELEVANTE` quedaron fijados en `config.py`
+ antes de esta corrida y no se modificaron después. No se volvió a
+correr ni se cambió la grilla, las semillas, los umbrales ni los
+ordenamientos.
+
+### Configuración
+
+- Datos: MovieLens latest-small, umbral=40: 321 usuarios × 534 películas,
+  38.891 calificaciones (la misma matriz que main).
+- Partición: `FRACCION_PRUEBA` = 0,2, `SEMILLA_PARTICION` = 42.
+  Tamaño real: entrenamiento 31.113, prueba 7.778; ningún par pasó a
+  entrenamiento (la misma partición que en el experimento de regularización). El log de `particionar` quedó
+  silenciado en la corrida; el tamaño se recalculó aparte, sin volver a
+  correr el experimento, porque la partición es determinista.
+- Modelo: r̂ = μ + bᵢ + cⱼ + Uᵢ·Vⱼ, ALS con el paso aumentado;
+  μ = promedio de Ω_ent en el barrido. Inicialización con
+  `SEMILLA_INICIALIZACION` = 42, sesgos en 0. epsilon = 1, max_iter = 3000.
+  Sin descenso de gradiente.
+- Precisión@10: relevante = calificación ≥ 4 (`UMBRAL_RELEVANTE`) en Ω_prueba.
+
+### Barrido de (k, λ) sobre Ω_ent
+
+f final es `f_sesgos`; la SCE de prueba y el fuera de rango usan r̂ completo.
+Todas las corridas cortaron por tolerancia.
+
+| k | λ | iteraciones | f final | SCE de prueba | fuera de rango | max\|r̂\| fuera de Ω | precisión@10 A | precisión@10 B |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2 | 1 | 34 | 17.062,4079 | 5.264,5984 | 0,11 % | 9,65 | 0,1063 | 0,0539 |
+| 2 | 5 | 19 | 19.038,4519 | 5.121,0319 | 0,00 % | 5,51 | 0,1282 | 0,0784 |
+| 2 | 10 | 16 | 20.634,0912 | 5.131,3478 | 0,00 % | 5,20 | 0,1458 | 0,0972 |
+| 2 | 20 | 11 | 22.390,1134 | 5.357,0451 | 0,00 % | 5,11 | 0,1433 | 0,1003 |
+| 5 | 1 | 65 | 14.113,8585 | 6.028,0219 | 0,28 % | 9,48 | 0,1113 | 0,0558 |
+| 5 | 5 | 25 | 17.589,6994 | 5.235,4810 | 0,00 % | 5,93 | 0,1370 | 0,0803 |
+| 5 | 10 | 17 | 20.120,7353 | 5.069,3088 | 0,00 % | 5,25 | 0,1524 | 0,1094 |
+| 5 | 20 | 9 | 22.389,1920 | 5.354,3828 | 0,00 % | 5,11 | 0,1439 | 0,1025 |
+| 10 | 1 | 89 | 10.657,5252 | 7.237,7341 | 0,56 % | 9,88 | 0,0850 | 0,0549 |
+| 10 | 5 | 30 | 16.017,9094 | 5.329,5385 | 0,00 % | 5,90 | 0,1357 | 0,0931 |
+| 10 | 10 | 18 | 19.670,8178 | 5.025,1242 | 0,00 % | 5,26 | 0,1495 | 0,1141 |
+| 10 | 20 | 9 | 22.387,4865 | 5.352,1131 | 0,00 % | 5,11 | 0,1451 | 0,1003 |
+| 20 | 1 | 76 | 6.772,0352 | 8.698,6452 | 0,51 % | 8,84 | 0,0881 | 0,0621 |
+| 20 | 5 | 39 | 14.468,0633 | 5.493,8874 | 0,00 % | 6,33 | 0,1313 | 0,0890 |
+| **20** | **10** | **19** | **19.380,4497** | **5.024,3106** | **0,00 %** | **5,21** | **0,1530** | **0,1122** |
+| 20 | 20 | 9 | 22.388,0557 | 5.350,2312 | 0,00 % | 5,11 | 0,1442 | 0,1031 |
+
+### Par elegido y línea de base
+
+**(k = 20, λ = 10)**, con la menor SCE de prueba, 5.024,3106 (optimista: la
+selección se hizo sobre el mismo conjunto de prueba). Sin regla de empate:
+(k = 10, λ = 10) quedó a 0,8 de diferencia (5.025,1242, un 0,016 %).
+
+Línea de base de precisión@10 (main: `entrenar_als`, k = 2, λ = 0, sin
+sesgos, sobre Ω_ent, ordenamiento absoluto): **0,1116**.
+
+| | precisión@10 (partición) |
+|---|---:|
+| línea de base (main) | 0,1116 |
+| A (r̂ completo) | 0,1530 |
+| B (Uᵢ·Vⱼ) | 0,1122 |
+
+### Modelo reentrenado sobre todo Ω (criterios 1, 2 y 4)
+
+(k = 20, λ = 10) sobre las 38.891 calificaciones, μ = 3,6792 (todo Ω): 22
+iteraciones (tolerancia), f final 23.289,8078, **0,00 % fuera de rango**,
+max|r̂| fuera de Ω = 5,51.
+
+Concentración con los 321 usuarios reales:
+
+| ordenamiento | películas en algún top-10 | más frecuente | en > 20 % | promedio de r̂ recomendado |
+|---|---:|---|---:|---:|
+| main (experimento 3) | 127 de 534 | Casablanca (1942), 43,9 % | 20 | — |
+| A | 261 de 534 | Casablanca (1942), 34,0 % | 7 | 4,269 |
+| B | **433 de 534** | **Borat (2006), 13,1 %** | **0** | 3,991 |
+
+Top-5 de A: Casablanca (1942) 34,0 %; Shawshank Redemption, The (1994)
+28,3 %; Dr. Strangelove (1964) 26,5 %; Life Is Beautiful (1997) 26,5 %;
+Princess Bride, The (1987) 24,9 %.
+
+Top-5 de B: Borat (2006) 13,1 %; Blair Witch Project, The (1999) 12,1 %;
+2001: A Space Odyssey (1968) 10,0 %; Natural Born Killers (1994) 9,7 %;
+Requiem for a Dream (2000) 9,7 %.
+
+Referencia, fuera del criterio (3.000 usuarios simulados con notas reales;
+(u, b) con el paso de usuarios aumentado):
+
+| ordenamiento | películas en algún top-10 | más frecuente | en > 20 % |
+|---|---:|---|---:|
+| A | 86 de 534 | Casablanca (1942), 75,7 % | 17 |
+| B | 421 de 534 | Natural Born Killers (1994), 17,9 % | 0 |
+
+### Veredicto
+
+| criterio | A | B | umbral |
+|---|---|---|---|
+| 1. la más frecuente en a lo sumo el 25 % | 34,0 % — **no** | 13,1 % — sí | ≤ 25 % |
+| 2. películas distintas | 261 — sí | 433 — sí | ≥ 127 |
+| 3. precisión@10 ≥ línea de base | 0,1530 — sí | 0,1122 — sí | ≥ 0,1116 |
+| 4. fuera de rango | 0,00 % — sí | 0,00 % — sí | ≤ 1 % |
+
+**El experimento es exitoso: el ordenamiento B cumple los cuatro criterios**
+(A falla el 1).
+
+Notas para leer el resultado, sin cambiar el veredicto:
+
+- B pasa el criterio 3 por muy poco: 0,1122 contra 0,1116 (0,0006 de
+  diferencia, medido en una sola partición). A es claramente más preciso
+  (0,1530), pero concentra más (34 %).
+- B reparte mucho más (433 películas; ninguna en más del 20 % de los top-10)
+  porque saca cⱼ: deja de favorecer a las películas bien valoradas por todos
+  y ordena solo por afinidad personal. El costo es un r̂ medio más bajo de lo
+  recomendado (3,991 contra 4,269 de A).
+- Con usuarios simulados (el caso del front), A sigue muy concentrado
+  (Casablanca 75,7 %) y B no (17,9 %).
+- Es el primer experimento que baja la concentración por debajo de los
+  umbrales: los sesgos separan la popularidad (cⱼ) del gusto (Uᵢ·Vⱼ), y
+  ordenar sin cⱼ ataca justo lo que los experimentos anteriores no
+  resolvían. Nada de esto entra al informe ni a main sin aprobación de la
+  cátedra.
