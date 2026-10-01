@@ -579,4 +579,29 @@ umbrales después de correr.
 
 ### Resultado
 
-(Pendiente: se completa con la salida de la corrida única.)
+Corrida única del comando registrado arriba. Un intento anterior falló antes
+de calcular nada (`ModuleNotFoundError: No module named 'src'`) porque se
+ejecutó el script como archivo desde fuera del repo en lugar de con
+`python -` desde la raíz, como dice el comando; no produjo ningún resultado.
+Se corrió de nuevo exactamente como está registrado, sin cambiar nada.
+
+| par | iteraciones ALS | fuera de rango | max\|r̂\| fuera de Ω | películas en algún top-10 | más frecuente | películas en > 20 % de los top-10 |
+|---|---:|---:|---:|---:|---|---:|
+| (k = 3, λ = 5) | 59 | 0,00 % | 6,20 | 85 de 534 | Shawshank Redemption, The (1994), 73,0 % | 21 |
+| (k = 5, λ = 5) | 56 | 0,00 % | 6,36 | **131** de 534 | Shawshank Redemption, The (1994), **69,0 %** | 17 |
+| (k = 10, λ = 10) | 23 | 0,00 % | 5,45 | 72 de 534 | Shawshank Redemption, The (1994), 73,2 % | 20 |
+
+Referencias (misma simulación, notas reales): main (k = 2, λ = 0), 65
+películas y 44,5 %; par elegido en el experimento de regularización (k = 2, λ = 5), 49 películas y 76,8 %.
+
+**Respuesta al criterio: no.** Ningún par cumple las dos condiciones a la vez.
+(5, 5) llega a 131 películas (≥ 130), pero su más frecuente aparece en el
+69,0 % de los top-10 (> 25 %). Los otros dos no cumplen ninguna.
+
+Lectura: con regularización, subir k amplía la cantidad de películas que
+alguna vez se recomiendan (de 49 con k = 2 a 72-131 con k > 2), pero una sola
+película (Shawshank Redemption) pasa a dominar casi tres de cada cuatro
+top-10, bastante más que en main (44,5 %). La regularización achica los
+factores de las películas con pocas calificaciones y deja arriba a las muy
+calificadas y bien puntuadas, así que, medida por la más frecuente, la
+concentración no baja: sube. Las tres corridas tienen 0,00 % fuera de rango.
