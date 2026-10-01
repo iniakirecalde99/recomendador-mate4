@@ -15,13 +15,17 @@ from pathlib import Path
 
 import numpy as np
 
+from experimentos import concentracion
+from experimentos.ordenamiento_relativo import ResultadoOrdenamiento, medir_tops
 from src import config
 from src.als import entrenar_als
 from src.datos import particionar, preparar_datos_movielens
 from src.modelo import inicializar_factores, predecir
 from src.sesgos import (
+    ResultadoSesgos,
     calcular_mu,
     entrenar_als_sesgos,
+    paso_usuarios,
     predecir_con_sesgos,
     puntajes_ordenamiento_a,
     puntajes_ordenamiento_b,
@@ -198,6 +202,134 @@ def precision_linea_de_base(
     )
 
 
+# --- Reentrenamiento, concentración y criterio ---
+
+
+def reentrenar_sesgos_sobre_todo_omega(
+    R: np.ndarray,
+    M: np.ndarray,
+    k: int,
+    lambda_: float,
+    semilla_inicializacion: int,
+    escala_inicializacion: float,
+    epsilon: float,
+    max_iter: int,
+) -> ResultadoSesgos:
+    """Vuelve a entrenar el par elegido sobre todo Ω, con μ de todo Ω.
+
+    Sobre este modelo se evalúan los criterios 1, 2 y 4.
+    """
+    m, n = R.shape
+    U0, V0 = inicializar_factores(
+        m=m, n=n, k=k, escala=escala_inicializacion,
+        generador=np.random.default_rng(semilla_inicializacion),
+    )
+    return entrenar_als_sesgos(
+        R, M, U0, V0, mu=calcular_mu(R, M), epsilon=epsilon, max_iter=max_iter, lambda_=lambda_
+    )
+
+
+def simular_usuarios_sesgos(
+    modelo: ResultadoSesgos,
+    M: np.ndarray,
+    titulos_por_indice: dict[int, str],
+    notas: np.ndarray,
+    lambda_: float,
+    n_usuarios: int,
+    min_calificadas: int,
+    max_calificadas: int,
+    n_a_calificar: int,
+    top_n: int,
+    semilla_simulacion: int,
+    umbral_frecuente: float,
+) -> tuple[ResultadoOrdenamiento, ResultadoOrdenamiento]:
+    """Usuarios simulados con el modelo con sesgos, ordenamientos A y B (referencia).
+
+    Mismo sorteo que `concentracion.simular`. El vector (u, b) de cada
+    usuario simulado se calcula con el mismo paso aumentado que un usuario
+    real: `paso_usuarios` con [V | 1], objetivo r − μ − c y el mismo λ.
+    Devuelve (A, B).
+    """
+    n = modelo.V.shape[0]
+    a_calificar = np.argsort(-M.sum(axis=0), kind="stable")[:n_a_calificar]
+    generador = np.random.default_rng(semilla_simulacion)
+
+    puntajes_a = np.empty((n_usuarios, n))
+    puntajes_b = np.empty((n_usuarios, n))
+    M_simulados = np.zeros((n_usuarios, n), dtype=bool)
+    for s in range(n_usuarios):
+        cantidad = generador.integers(min_calificadas, max_calificadas + 1)
+        elegidas = generador.choice(a_calificar, size=cantidad, replace=False)
+        r = np.full(n, np.nan)
+        r[elegidas] = generador.choice(notas, size=cantidad)
+
+        # (u, b) del usuario simulado con el paso de usuarios aumentado.
+        u, b_u = paso_usuarios(r[None, :], ~np.isnan(r)[None, :], modelo.V, modelo.c, modelo.mu, lambda_)
+        puntajes_b[s] = modelo.V @ u[0]
+        puntajes_a[s] = modelo.mu + b_u[0] + modelo.c + puntajes_b[s]
+        M_simulados[s, elegidas] = True
+
+    return (
+        medir_tops(puntajes_a, puntajes_a, M_simulados, titulos_por_indice, top_n, umbral_frecuente),
+        medir_tops(puntajes_b, puntajes_a, M_simulados, titulos_por_indice, top_n, umbral_frecuente),
+    )
+
+
+@dataclass
+class MetricasOrdenamiento:
+    """Lo que mira el criterio para un ordenamiento.
+
+    Atributos:
+        precision: precisión@10 del modelo de la partición (criterio 3).
+        distintas_en_top_n, frecuencia_mas_frecuente: concentración de los
+            usuarios reales con el modelo reentrenado (criterios 1 y 2).
+    """
+
+    precision: float
+    distintas_en_top_n: int
+    frecuencia_mas_frecuente: float
+
+
+@dataclass
+class VeredictoSesgos:
+    """Criterios por ordenamiento: nombre ("A", "B") → criterio → cumple."""
+
+    criterios: dict[str, dict[int, bool]]
+
+    @property
+    def exitoso(self) -> bool:
+        """Éxito si al menos un ordenamiento cumple los cuatro criterios."""
+        return any(all(c.values()) for c in self.criterios.values())
+
+
+def evaluar_criterio_sesgos(
+    metricas: dict[str, MetricasOrdenamiento],
+    precision_linea_de_base: float,
+    fraccion_fuera_de_rango: float,
+    max_frecuencia: float = config.MAX_FRECUENCIA_SESGOS,
+    min_peliculas: int = config.MIN_PELICULAS_DISTINTAS_SESGOS,
+    max_fraccion_fuera: float = config.MAX_FRACCION_FUERA_DE_RANGO_SESGOS,
+) -> VeredictoSesgos:
+    """Evalúa el criterio de éxito para cada ordenamiento.
+
+    1. La más frecuente en a lo sumo `max_frecuencia` de los top-10.
+    2. Al menos `min_peliculas` películas distintas en algún top-10.
+    3. Precisión@10 mayor o igual que la línea de base.
+    4. A lo sumo `max_fraccion_fuera` de estimaciones fuera de rango (r̂
+       completo; es el mismo valor para A y B).
+    Los criterios no se mezclan entre ordenamientos.
+    """
+    return VeredictoSesgos(criterios={
+        nombre: {
+            1: m.frecuencia_mas_frecuente <= max_frecuencia,
+            2: m.distintas_en_top_n >= min_peliculas,
+            3: m.precision >= precision_linea_de_base,
+            4: fraccion_fuera_de_rango <= max_fraccion_fuera,
+        }
+        for nombre, m in metricas.items()
+    })
+
+
 # --- CLI ---
 
 
@@ -281,6 +413,78 @@ def main(argv: list[str] | None = None) -> None:
         "Línea de base (main: k=%d, λ=0, sin sesgos, sobre Ω_ent): precisión@%d = %.4f",
         config.K_DEFECTO, args.top_n, precision_base,
     )
+
+    # El par elegido se reentrena sobre todo Ω (μ de todo Ω).
+    final = reentrenar_sesgos_sobre_todo_omega(
+        R, M, k=elegido.k, lambda_=elegido.lambda_,
+        semilla_inicializacion=args.semilla_inicializacion,
+        escala_inicializacion=config.ESCALA_INICIALIZACION_DEFECTO,
+        epsilon=args.epsilon, max_iter=args.max_iter,
+    )
+    R_hat = predecir_con_sesgos(final.U, final.V, final.b, final.c, final.mu)
+    fraccion, maximo = medir_fuera_de_rango_r_hat(R_hat, M, args.escala_min, args.escala_max)
+    LOGGER.info(
+        "Reentrenado sobre todo Ω: μ=%.4f, %d it (%s), f final %.4f, fuera de rango %.2f %%, "
+        "max|r̂| fuera de Ω %.2f",
+        final.mu, final.n_iteraciones, final.motivo_corte, final.historial_f[-1],
+        100 * fraccion, maximo,
+    )
+
+    puntajes = {
+        "A": puntajes_ordenamiento_a(final.U, final.V, final.b, final.c, final.mu),
+        "B": puntajes_ordenamiento_b(final.U, final.V),
+    }
+    precision_particion = {"A": elegido.precision_a, "B": elegido.precision_b}
+    metricas: dict[str, MetricasOrdenamiento] = {}
+    for nombre, P in puntajes.items():
+        reales = medir_tops(
+            P, R_hat, M, datos.titulos_por_indice, args.top_n,
+            concentracion.UMBRAL_FRECUENTE_DEFECTO,
+        )
+        metricas[nombre] = MetricasOrdenamiento(
+            precision=precision_particion[nombre],
+            distintas_en_top_n=reales.distintas_en_top_n,
+            frecuencia_mas_frecuente=reales.frecuencia_mas_frecuente,
+        )
+        LOGGER.info(
+            "Concentración (usuarios reales) %s: %d de %d películas en algún top-%d; más "
+            "frecuente: %s (%.1f %%); en > 20 %%: %d; promedio de r̂ recomendado %.3f; "
+            "precisión@%d (partición) %.4f",
+            nombre, reales.distintas_en_top_n, reales.n_peliculas, args.top_n,
+            reales.mas_frecuente, 100 * reales.frecuencia_mas_frecuente, reales.n_frecuentes,
+            reales.promedio_r_hat, args.top_n, precision_particion[nombre],
+        )
+        LOGGER.info(
+            "  top-5: %s", "; ".join(f"{t} {100 * f:.1f}%" for t, f in reales.mas_frecuentes)
+        )
+
+    simulados = simular_usuarios_sesgos(
+        final, M, datos.titulos_por_indice,
+        notas=concentracion.notas_reales(args.datos / "ratings.csv"), lambda_=elegido.lambda_,
+        n_usuarios=concentracion.N_USUARIOS_DEFECTO,
+        min_calificadas=concentracion.MIN_CALIFICADAS_DEFECTO,
+        max_calificadas=concentracion.MAX_CALIFICADAS_DEFECTO,
+        n_a_calificar=config.N_A_CALIFICAR_DEFECTO, top_n=args.top_n,
+        semilla_simulacion=concentracion.SEMILLA_SIMULACION_DEFECTO,
+        umbral_frecuente=concentracion.UMBRAL_FRECUENTE_DEFECTO,
+    )
+    for nombre, sim in zip(("A", "B"), simulados):
+        LOGGER.info(
+            "Referencia (usuarios simulados) %s, fuera del criterio: %d de %d películas en "
+            "algún top-%d; más frecuente: %s (%.1f %%); en > 20 %%: %d",
+            nombre, sim.distintas_en_top_n, sim.n_peliculas, args.top_n, sim.mas_frecuente,
+            100 * sim.frecuencia_mas_frecuente, sim.n_frecuentes,
+        )
+
+    veredicto = evaluar_criterio_sesgos(
+        metricas, precision_linea_de_base=precision_base, fraccion_fuera_de_rango=fraccion
+    )
+    for nombre, criterios in veredicto.criterios.items():
+        LOGGER.info(
+            "Veredicto %s: %s", nombre,
+            ", ".join(f"{n}: {'sí' if ok else 'no'}" for n, ok in criterios.items()),
+        )
+    LOGGER.info("Veredicto: %s", "EXITOSO" if veredicto.exitoso else "NO exitoso")
 
 
 if __name__ == "__main__":

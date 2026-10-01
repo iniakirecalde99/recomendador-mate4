@@ -7,11 +7,15 @@ import pytest
 import experimentos.sesgos as experimento
 from experimentos.sesgos import (
     FilaSesgos,
+    MetricasOrdenamiento,
     barrer_sesgos,
     construir_parser,
     elegir_par_sesgos,
+    evaluar_criterio_sesgos,
     precision_linea_de_base,
     precision_en_n,
+    reentrenar_sesgos_sobre_todo_omega,
+    simular_usuarios_sesgos,
 )
 from src import config
 from src.datos import particionar
@@ -209,3 +213,127 @@ def test_parser_toma_los_defaults_de_config():
     assert args.escala_max == config.ESCALA_MAX
     assert args.top_n == config.TOP_N_DEFECTO
     assert args.umbral_relevante == config.UMBRAL_RELEVANTE
+
+
+# --- Reentrenamiento, concentración y criterio ---
+
+
+def test_reentrenamiento_usa_todo_omega_y_mu_de_todo_omega(monkeypatch):
+    R, M, M_ent, _ = _datos_chicos()
+    llamadas = []
+    entrenar_real = experimento.entrenar_als_sesgos
+
+    def entrenar_espia(R_, M_, U0, V0, mu, epsilon, max_iter, lambda_):
+        llamadas.append((M_.copy(), mu, U0.shape[1], lambda_))
+        return entrenar_real(R_, M_, U0, V0, mu=mu, epsilon=epsilon, max_iter=max_iter, lambda_=lambda_)
+
+    monkeypatch.setattr(experimento, "entrenar_als_sesgos", entrenar_espia)
+
+    modelo = reentrenar_sesgos_sobre_todo_omega(
+        R, M, k=2, lambda_=5.0, semilla_inicializacion=7, escala_inicializacion=1.0,
+        epsilon=1e-6, max_iter=200,
+    )
+
+    (M_usada, mu, k, lambda_), = llamadas
+    assert np.array_equal(M_usada, M) and not np.array_equal(M_usada, M_ent)
+    assert mu == calcular_mu(R, M) == modelo.mu
+    assert (k, lambda_) == (2, 5.0)
+
+
+def test_usuario_simulado_usa_el_paso_de_usuarios_aumentado(monkeypatch):
+    R, M, _, _ = _datos_chicos()
+    modelo = reentrenar_sesgos_sobre_todo_omega(
+        R, M, k=2, lambda_=5.0, semilla_inicializacion=7, escala_inicializacion=1.0,
+        epsilon=1e-6, max_iter=200,
+    )
+    llamadas = []
+    paso_real = experimento.paso_usuarios
+
+    def paso_espia(R_, M_, V, c, mu, lambda_):
+        llamadas.append((V, c, mu, lambda_))
+        return paso_real(R_, M_, V, c, mu, lambda_)
+
+    monkeypatch.setattr(experimento, "paso_usuarios", paso_espia)
+    titulos = {j: f"película {j}" for j in range(R.shape[1])}
+
+    a, b = simular_usuarios_sesgos(
+        modelo, M, titulos, notas=np.array([2.0, 4.0, 5.0]), lambda_=5.0,
+        n_usuarios=30, min_calificadas=3, max_calificadas=5, n_a_calificar=10,
+        top_n=3, semilla_simulacion=0, umbral_frecuente=0.2,
+    )
+
+    assert len(llamadas) == 30
+    for V, c, mu, lambda_ in llamadas:
+        assert V is modelo.V and c is modelo.c and mu == modelo.mu and lambda_ == 5.0
+    assert a.n_usuarios == b.n_usuarios == 30
+
+
+def _metricas(precision=0.20, distintas=140, frecuencia=0.20):
+    return MetricasOrdenamiento(
+        precision=precision, distintas_en_top_n=distintas, frecuencia_mas_frecuente=frecuencia
+    )
+
+
+def _evaluar(a, b, precision_base=0.15, fuera=0.005):
+    return evaluar_criterio_sesgos(
+        {"A": a, "B": b}, precision_linea_de_base=precision_base, fraccion_fuera_de_rango=fuera,
+    )
+
+
+def test_criterio_exitoso_si_a_o_b_cumple_todo():
+    veredicto = _evaluar(_metricas(frecuencia=0.60), _metricas())
+
+    assert veredicto.criterios["B"] == {1: True, 2: True, 3: True, 4: True}
+    assert veredicto.criterios["A"][1] is False
+    assert veredicto.exitoso
+
+
+def test_criterio_falla_si_ninguno_cumple_los_cuatro():
+    veredicto = _evaluar(_metricas(distintas=126), _metricas(precision=0.10))
+
+    assert veredicto.criterios["A"][2] is False  # 126 < 127
+    assert veredicto.criterios["B"][3] is False  # precisión < línea de base
+    assert not veredicto.exitoso
+    # el criterio 4 (fuera de rango) es el mismo para A y B
+    assert not _evaluar(_metricas(), _metricas(), fuera=0.0101).exitoso
+
+
+def test_criterio_no_mezcla_criterios_de_a_y_de_b():
+    # A cumple 1, 2 y 4 pero no 3; B cumple 3 pero no 1: entre los dos
+    # cubren todo, pero ninguno solo cumple los cuatro.
+    veredicto = _evaluar(_metricas(precision=0.10), _metricas(frecuencia=0.30))
+
+    assert not veredicto.exitoso
+
+
+def test_criterio_usa_los_bordes_de_los_umbrales():
+    assert _evaluar(_metricas(distintas=127, frecuencia=0.25, precision=0.15), _metricas(precision=0.0),
+                    fuera=0.01).criterios["A"] == {1: True, 2: True, 3: True, 4: True}
+
+
+def test_main_corre_de_punta_a_punta_sobre_dataset_chico(tmp_path, caplog):
+    generador = np.random.default_rng(11)
+    lineas = ["userId,movieId,rating,timestamp"]
+    for usuario in range(1, 21):
+        for pelicula in range(1, 26):
+            if generador.uniform() < 0.8:
+                lineas.append(f"{usuario},{pelicula},{generador.integers(1, 11) / 2},0")
+    (tmp_path / "ratings.csv").write_text("\n".join(lineas) + "\n", encoding="utf-8")
+    (tmp_path / "movies.csv").write_text(
+        "movieId,title,genres\n" + "".join(f"{j},Película {j} (2000),Drama\n" for j in range(1, 26)),
+        encoding="utf-8",
+    )
+
+    with caplog.at_level("INFO"):
+        experimento.main([
+            "--datos", str(tmp_path), "--umbral", "5",
+            "--grilla-k", "2", "3", "--grilla-lambda", "1", "5", "--max-iter", "50",
+        ])
+
+    assert "Par elegido" in caplog.text
+    assert "Línea de base" in caplog.text
+    assert "Reentrenado sobre todo Ω" in caplog.text
+    assert "Concentración (usuarios reales) A" in caplog.text
+    assert "Concentración (usuarios reales) B" in caplog.text
+    assert "Referencia (usuarios simulados)" in caplog.text
+    assert "Veredicto" in caplog.text
