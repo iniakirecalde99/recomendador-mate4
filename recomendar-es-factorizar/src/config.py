@@ -1,36 +1,36 @@
 """Valores por defecto de los hiperparámetros de la demo.
 
-Valores definitivos, calibrados corriendo la demo y un experimento de
-calibración sobre MovieLens real (tablas completas
-y conclusión en experimentos/bitacora.md). El criterio de cada uno queda como
-comentario debajo de la constante.
+Valores definitivos, recalibrados sobre MovieLens latest-small real con el
+mismo experimento que se hizo para MovieLens 100K (tablas completas y conclusión en experimentos/bitacora.md, "Recalibración"). El
+criterio de cada uno queda como comentario debajo de la constante; lo
+verifica tests/test_calibracion.py.
 """
 
 from pathlib import Path
 
 # --- Preprocesamiento y modelo ---
 
-UMBRAL_DEFECTO: int = 50
-# Motivo (calibración sobre MovieLens real, ver experimentos/bitacora.md): primer
-# umbral, de 20/50/100 probados, donde ALS y GD con k=2 dan
-# max|r_hat| fuera de Ω < 7 para los dos a la vez (con umbral=20 sigue
-# siendo >7; con umbral=100 el filtro en cascada vacía la matriz). El
-# umbral es un parámetro propio, independiente de k (>= k, si no
-# `filtrar_por_minimo` lanza `UmbralInsuficienteError`): tener al menos k
-# observaciones por fila alcanza para que el sistema de ALS tenga solución
-# única, pero no para que esa solución sea razonable.
+UMBRAL_DEFECTO: int = 40
+# Motivo (recalibración sobre MovieLens latest-small, ver experimentos/bitacora.md):
+# menor umbral, de 10/20/30/35/40/50 probados, donde ALS y GD con k=2 dan
+# max|r_hat| fuera de Ω < 7 para los dos a la vez (6.4 y 5.9; con
+# umbral=35 ALS da 7.2, con 30 da 8.5). Deja 321 usuarios × 534 películas,
+# contra 207 × 302 con umbral=50. El umbral es un parámetro propio,
+# independiente de k (>= k, si no `filtrar_por_minimo` lanza
+# `UmbralInsuficienteError`): tener al menos k observaciones por fila
+# alcanza para que el sistema de ALS tenga solución única, pero no para que
+# esa solución sea razonable.
 
 K_DEFECTO: int = 2
-# Motivo (calibración sobre MovieLens real): de los k probados (2, 3, 5)
-# con umbral=50, k=2 es el que menos amplifica |r_hat| fuera de Ω (5.8 vs.
-# 6.5 y 11.9) y evita el SistemaSingularError que aparece con
-# umbral == k == 5.
+# Motivo (recalibración): con todos los umbrales probados, k=3 y k=5 hacen
+# que ALS amplifique |r_hat| fuera de Ω (17 a 268.701); k=2 es el único que
+# cumple el criterio. Además, el recomendador HTML solo soporta k=2.
 
-ETA_DEFECTO: float = 2e-4
-# Motivo (calibración sobre MovieLens real, k=2): de los eta probados
-# (2e-4, 5e-4, 1e-3), 2e-4 converge por tolerancia sin que f aumente; 5e-4
-# no converge en 3000 iteraciones (f sube 1491 veces) y 1e-3 diverge
-# (DivergenciaError) en la iteración 14.
+ETA_DEFECTO: float = 5e-4
+# Motivo (recalibración, umbral=40, k=2): de los eta probados (2e-4, 5e-4,
+# 1e-3), 5e-4 converge por tolerancia sin que f aumente en la mitad de
+# iteraciones que 2e-4 (462 vs. 922), con 5 semillas más probadas sin
+# ningún aumento de f; 1e-3 diverge (DivergenciaError) en la iteración 35.
 
 EPSILON_DEFECTO: float = 1.0
 # Motivo: con la escala de la SCE sobre MovieLens filtrado (decenas de
@@ -39,9 +39,9 @@ EPSILON_DEFECTO: float = 1.0
 # en vez de agotar max_iter.
 
 MAX_ITER_DEFECTO: int = 3000
-# Motivo: GD con eta=2e-4 necesitó hasta ~1800 iteraciones para cortar por
-# tolerancia en la calibración (umbral=20, k=5); 3000 deja margen sin
-# alargar demasiado una demo en vivo.
+# Motivo: GD con eta=5e-4 necesitó entre 430 y 755 iteraciones en la
+# recalibración (6 semillas) y hasta ~2300 con eta=2e-4 en la exploración
+# de umbral; 3000 deja margen sin alargar demasiado una demo en vivo.
 
 SEMILLA_DEFECTO: int = 42
 # Motivo: semilla arbitraria fija, solo para que la demo sea reproducible

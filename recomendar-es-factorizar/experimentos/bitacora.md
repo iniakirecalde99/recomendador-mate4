@@ -228,3 +228,88 @@ Top-10 GD, usuario 1 (umbral=50, k=2):
   `MAX_ITER_DEFECTO=3000`, `SEMILLA_DEFECTO=42`,
   `ESCALA_INICIALIZACION_DEFECTO=1.0`.
 
+## Recalibración sobre MovieLens latest-small
+
+Mismo experimento que la calibración sobre 100K, repetido tras el cambio de
+dataset. Scripts temporales fuera de `src/` y `tests/` (sin
+commitear), sobre `data/ml-latest-small/` real. Semilla 42, escala de
+inicialización 1.0. ALS: epsilon=1, max_iter=1000. GD: eta=2e-4, epsilon=1,
+max_iter=3000. Criterio, igual que antes: menor umbral y después menor k con
+max|r̂| fuera de Ω < 7 para ALS y GD a la vez. Como latest-small es mucho más
+disperso (9.724 películas para 610 usuarios), se probaron umbrales más bajos
+que en 100K, y después se afinó entre 30 y 50.
+
+Nota: la primera corrida se cortó con `_ArrayMemoryError` (2,7 MiB) porque
+otro proceso de la máquina tenía tomada casi toda la memoria virtual de
+Windows; no es un problema del código. Se repitió por partes.
+
+| umbral | k | usuarios | películas | calificaciones | ALS iter | ALS SCE | ALS max\|r̂\| fuera Ω | GD iter | GD SCE | GD max\|r̂\| fuera Ω | año mediano, % ≥ 2000 |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| 10 | 2 | 609 | 2269 | 81109 | 27 | 46992.48 | 37.6676 | 1416 | 47539.44 | 7.1587 | 1997, 42 % |
+| 10 | 3 | 609 | 2269 | 81109 | 78 | 42382.89 | 5006.0691 | 1926 | 43642.62 | 14.2253 | 1997, 42 % |
+| 10 | 5 | 609 | 2269 | 81109 | 136 | 35272.49 | 268700.7511 | 2284 | 37293.07 | 11.1774 | 1997, 42 % |
+| 20 | 2 | 566 | 1286 | 67020 | 21 | 39522.42 | 32.0125 | 1491 | 39957.39 | 6.3205 | 1997, 40 % |
+| 20 | 3 | 566 | 1286 | 67020 | 38 | 35974.15 | 367.9705 | 1644 | 37045.56 | 10.4327 | 1997, 40 % |
+| 20 | 5 | 566 | 1286 | 67020 | 96 | 30622.31 | 989.5806 | 1836 | 32181.10 | 9.3268 | 1997, 40 % |
+| 30 | 2 | 435 | 827 | 52971 | 14 | 30992.45 | 8.5325 | 1416 | 31786.46 | 8.9711 | 1997, 40 % |
+| 30 | 3 | 435 | 827 | 52971 | 47 | 28467.82 | 58.2797 | 1300 | 28996.37 | 7.1169 | 1997, 40 % |
+| 30 | 5 | 435 | 827 | 52971 | 52 | 24651.24 | 138.7910 | 1482 | 25764.74 | 9.2326 | 1997, 40 % |
+| 35 | 2 | 382 | 693 | 47024 | 13 | 27601.18 | 7.1834 | 1027 | 27953.26 | 6.4272 | 1997, 37 % |
+| **40** | **2** | **321** | **534** | **38891** | **10** | **22937.39** | **6.3881** | **922** | **23191.62** | **5.8621** | 1997, 36 % |
+| 50 | 2 | 207 | 302 | 23434 | 9 | 13367.34 | 5.4628 | 717 | 13639.46 | 5.4622 | 1997, 37 % |
+| 50 | 3 | 207 | 302 | 23434 | 17 | 12293.65 | 17.5185 | 746 | 12965.39 | 7.3155 | 1997, 37 % |
+| 50 | 5 | 207 | 302 | 23434 | 51 | 10627.39 | 22.8481 | 931 | 11407.25 | 6.5442 | 1997, 37 % |
+
+Todas las corridas cortaron por tolerancia. Todas las combinaciones con k=3
+o k=5 fallan el criterio (ALS amplifica |r̂| fuera de Ω); con k=2, umbral=40
+es el menor que cumple.
+
+**GD con umbral=40, k=2, eta=2e-4/5e-4/1e-3 (epsilon=1, max_iter=3000):**
+
+| eta | iteraciones | motivo de corte | SCE final | iteraciones con f creciente | max\|r̂\| fuera Ω |
+|---:|---:|---|---:|---:|---:|
+| 2e-4 | 922 | tolerancia | 23191.62 | 0 | 5.8621 |
+| 5e-4 | 462 | tolerancia | 23045.88 | 0 | 6.1228 |
+| 1e-3 | — | — | — | — | **DivergenciaError** en la iteración 35 |
+
+**Robustez de eta=5e-4 frente a la semilla (umbral=40, k=2):**
+
+| semilla | GD iteraciones | f creciente | GD max\|r̂\| fuera Ω | ALS max\|r̂\| fuera Ω |
+|---:|---:|---:|---:|---:|
+| 1 | 511 | 0 | 7.24 | 6.46 |
+| 2 | 755 | 0 | 6.57 | 6.15 |
+| 3 | 554 | 0 | 5.65 | 6.23 |
+| 7 | 432 | 0 | 5.92 | 6.16 |
+| 123 | 430 | 0 | 6.07 | 6.15 |
+
+(Con la semilla 1, GD queda apenas por encima de 7; el criterio se evalúa
+con la semilla por defecto, 42.)
+
+**Demo con los defaults nuevos (umbral=40, k=2, eta=5e-4):**
+
+```
+MovieLens filtrado (umbral=40, k=2): 321 usuarios, 534 películas, 38891 calificaciones.
+ALS                 10        tolerancia      0.1198    22937.3886
+GD                 462        tolerancia      2.0637    23045.8796
+```
+
+Top-10 ALS del usuario 1: Shawshank Redemption (5.25), Casablanca, Boondock
+Saints (2000), Wallace & Gromit: The Wrong Trousers, Godfather, Dark Knight
+(2008), Unforgiven, Amelie (2001), Life Is Beautiful, Lord of the Rings:
+The Return of the King (2003). Sin regularización ni recorte, r̂ puede pasar
+de 5, que es la calificación máxima.
+
+### Conclusión
+
+- **Valores definitivos** (`src/config.py`): `UMBRAL_DEFECTO=40`,
+  `K_DEFECTO=2`, `ETA_DEFECTO=5e-4`; sin cambios `EPSILON_DEFECTO=1.0`,
+  `MAX_ITER_DEFECTO=3000`, `SEMILLA_DEFECTO=42`,
+  `ESCALA_INICIALIZACION_DEFECTO=1.0`. `tests/test_calibracion.py` verifica
+  el criterio con esos defaults sobre el dataset real.
+- **La misma lección que con 100K:** k=2 y un umbral bien por encima de k.
+  Con más factores o menos observaciones, ALS amplifica r̂ fuera de Ω.
+- **Películas nuevas:** el filtro se queda con las más calificadas, que en
+  este dataset son mayormente de los 90 (año mediano 1997 en todos los
+  umbrales; entre 36 % y 42 % del 2000 en adelante). Igual aparecen en las
+  recomendaciones películas de 2000 a 2008, que con 100K (hasta 1998) no
+  existían.
