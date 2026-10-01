@@ -116,3 +116,11 @@ MAX_FRACCION_FUERA_DE_RANGO: float = 0.01
 TOLERANCIA_EMPATE: float = 0.01
 # Regla de empate de la selección: pares a menos del 1 % de la mejor
 # SCE de prueba se consideran empatados.
+
+GRILLA_K: tuple[int, ...] = (2, 3, 5, 10)
+GRILLA_LAMBDA: tuple[float, ...] = (0.0, 1.0, 5.0, 10.0, 20.0)
+# Grilla del barrido de (k, λ).
+
+SEMILLA_INICIALIZACION: int = SEMILLA_DEFECTO
+# Semilla de U₀, V₀ para todos los pares del barrido. Por referencia a SEMILLA_DEFECTO, no el literal 42, para que
+# (k = 2, λ = 0) arranque del mismo U₀, V₀ que main.

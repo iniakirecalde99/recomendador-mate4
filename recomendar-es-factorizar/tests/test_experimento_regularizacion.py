@@ -4,8 +4,18 @@ verificación del experimento de regularización."""
 import numpy as np
 import pytest
 
-from experimentos.regularizacion import evaluar_criterios, medir_fuera_de_rango
+import experimentos.regularizacion as experimento
+from experimentos.regularizacion import (
+    FilaBarrido,
+    barrer,
+    construir_parser,
+    elegir_par,
+    evaluar_criterios,
+    medir_fuera_de_rango,
+)
 from src import config
+from src.datos import particionar
+from src.errores import SistemaSingularError
 
 
 # --- Métricas ---
@@ -91,3 +101,134 @@ def test_evaluar_criterios_falla_con_menos_de_130_peliculas_o_mas_de_25_por_cien
     assert _caso_exitoso(peliculas_en_algun_top=129).criterios[4] is False
     assert _caso_exitoso(frecuencia_mas_frecuente=0.25).criterios[4] is True  # "a lo sumo"
     assert _caso_exitoso(frecuencia_mas_frecuente=0.2501).criterios[4] is False
+
+
+# --- Barrido y selección ---
+
+
+def _datos_chicos():
+    generador = np.random.default_rng(3)
+    m, n = 12, 15
+    M = generador.uniform(size=(m, n)) < 0.7
+    R = np.where(M, generador.integers(1, 6, size=(m, n)).astype(float), np.nan)
+    M_ent, M_prueba = particionar(M, fraccion_prueba=0.2, generador=np.random.default_rng(1))
+    return R, M, M_ent, M_prueba
+
+
+def _barrer(R, M, M_ent, M_prueba, grilla_k=(1, 2), grilla_lambda=(0.0, 1.0)):
+    return barrer(
+        R, M, M_ent, M_prueba,
+        grilla_k=grilla_k, grilla_lambda=grilla_lambda,
+        semilla_inicializacion=7, escala_inicializacion=1.0,
+        epsilon=1e-6, max_iter=200, escala_min=0.5, escala_max=5.0,
+    )
+
+
+def test_barrido_devuelve_una_fila_por_par_de_la_grilla():
+    filas = _barrer(*_datos_chicos())
+
+    assert [(f.k, f.lambda_) for f in filas] == [(1, 0.0), (1, 1.0), (2, 0.0), (2, 1.0)]
+    for fila in filas:
+        assert fila.error is None
+        assert fila.iteraciones > 0
+        assert np.isfinite(fila.sce_prueba) and np.isfinite(fila.f_final)
+        assert 0.0 <= fila.fraccion_fuera_de_rango <= 1.0
+
+
+def test_barrido_registra_el_error_de_un_par_singular_y_sigue(monkeypatch):
+    entrenar_real = experimento.entrenar_als
+
+    def entrenar_que_falla_con_k2_lambda0(R, M, U0, V0, epsilon, max_iter, lambda_):
+        if U0.shape[1] == 2 and lambda_ == 0.0:
+            raise SistemaSingularError(fila=3, n_observados=1)
+        return entrenar_real(R, M, U0, V0, epsilon=epsilon, max_iter=max_iter, lambda_=lambda_)
+
+    monkeypatch.setattr(experimento, "entrenar_als", entrenar_que_falla_con_k2_lambda0)
+
+    filas = _barrer(*_datos_chicos())
+
+    assert len(filas) == 4
+    fallida = next(f for f in filas if f.k == 2 and f.lambda_ == 0.0)
+    assert fallida.error is not None and "fila 3" in fallida.error
+    assert all(f.error is None for f in filas if f is not fallida)
+
+
+def test_todos_los_lambda_de_un_k_arrancan_del_mismo_u0_v0(monkeypatch):
+    entrenar_real = experimento.entrenar_als
+    inicios = {}
+
+    def entrenar_que_registra(R, M, U0, V0, epsilon, max_iter, lambda_):
+        inicios[(U0.shape[1], lambda_)] = (U0.copy(), V0.copy())
+        return entrenar_real(R, M, U0, V0, epsilon=epsilon, max_iter=max_iter, lambda_=lambda_)
+
+    monkeypatch.setattr(experimento, "entrenar_als", entrenar_que_registra)
+
+    _barrer(*_datos_chicos(), grilla_k=(2,), grilla_lambda=(0.0, 1.0, 5.0))
+
+    U_ref, V_ref = inicios[(2, 0.0)]
+    for lambda_ in (1.0, 5.0):
+        assert np.array_equal(inicios[(2, lambda_)][0], U_ref)
+        assert np.array_equal(inicios[(2, lambda_)][1], V_ref)
+    # y es la inicialización de la semilla recibida
+    m, n = _datos_chicos()[0].shape
+    U_esperada, V_esperada = experimento.inicializar_factores(
+        m=m, n=n, k=2, escala=1.0, generador=np.random.default_rng(7)
+    )
+    assert np.array_equal(U_ref, U_esperada) and np.array_equal(V_ref, V_esperada)
+
+
+def _fila(k, lambda_, sce_prueba, error=None):
+    return FilaBarrido(
+        k=k, lambda_=lambda_, iteraciones=10, motivo_corte="tolerancia", f_final=0.0,
+        sce_prueba=sce_prueba, fraccion_fuera_de_rango=0.0, max_abs_fuera_de_omega=0.0,
+        error=error,
+    )
+
+
+def test_seleccion_elige_menor_sce_de_prueba():
+    filas = [_fila(2, 0.0, 1000.0), _fila(3, 1.0, 800.0), _fila(5, 5.0, 900.0)]
+
+    assert elegir_par(filas, tolerancia_empate=0.01) is filas[1]
+
+
+def test_seleccion_con_empate_menor_al_1_por_ciento_gana_el_menor_k():
+    # 5,10 queda a 0,5 % de la mejor (3,5): empatan y gana el menor k.
+    filas = [_fila(5, 10.0, 800.0), _fila(3, 5.0, 804.0), _fila(2, 0.0, 900.0)]
+
+    assert elegir_par(filas, tolerancia_empate=0.01) is filas[1]
+
+
+def test_seleccion_con_varios_pares_del_menor_k_gana_el_de_menor_sce():
+    filas = [_fila(5, 1.0, 800.0), _fila(3, 1.0, 805.0), _fila(3, 5.0, 803.0)]
+
+    assert elegir_par(filas, tolerancia_empate=0.01) is filas[2]
+
+
+def test_seleccion_ignora_los_pares_con_error():
+    filas = [_fila(2, 0.0, float("nan"), error="singular"), _fila(5, 1.0, 900.0)]
+
+    assert elegir_par(filas, tolerancia_empate=0.01) is filas[1]
+
+
+def test_parser_toma_los_defaults_de_config():
+    args = construir_parser().parse_args([])
+
+    assert args.datos == config.RUTA_DATOS_DEFECTO
+    assert args.umbral == config.UMBRAL_DEFECTO
+    assert tuple(args.grilla_k) == config.GRILLA_K
+    assert tuple(args.grilla_lambda) == config.GRILLA_LAMBDA
+    assert args.fraccion_prueba == config.FRACCION_PRUEBA
+    assert args.semilla_particion == config.SEMILLA_PARTICION
+    assert args.semilla_inicializacion == config.SEMILLA_INICIALIZACION
+    assert args.epsilon == config.EPSILON_DEFECTO
+    assert args.max_iter == config.MAX_ITER_DEFECTO
+    assert args.escala_min == config.ESCALA_MIN
+    assert args.escala_max == config.ESCALA_MAX
+    assert args.tolerancia_empate == config.TOLERANCIA_EMPATE
+
+
+def test_config_de_la_grilla_y_las_semillas():
+    assert config.GRILLA_K == (2, 3, 5, 10)
+    assert config.GRILLA_LAMBDA == (0.0, 1.0, 5.0, 10.0, 20.0)
+    assert config.SEMILLA_INICIALIZACION == config.SEMILLA_DEFECTO
+    assert config.SEMILLA_PARTICION == config.SEMILLA_DEFECTO
