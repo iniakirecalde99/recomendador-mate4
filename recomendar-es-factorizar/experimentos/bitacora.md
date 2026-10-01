@@ -495,4 +495,49 @@ Se cumple si se cumplen los tres, para el ordenamiento relativo:
 
 ### Resultado
 
-(Pendiente: se completa con la salida de la corrida única.)
+Corrida única de `python -m experimentos.ordenamiento_relativo`. Modelo de
+main: ALS en 10 iteraciones (tolerancia), SCE 22.937,3886; ū = (3,0302;
+3,2703). Los ordenamientos absolutos reproducen las referencias (127 y
+43,9 % con usuarios reales, como el experimento 3; 65 y 44,5 % con
+simulados, como el experimento de concentración).
+
+**Usuarios reales (321), sobre los que se evalúa el criterio:**
+
+| ordenamiento | películas en algún top-10 | más frecuente | en > 20 % | promedio de r̂ recomendado |
+|---|---:|---|---:|---:|
+| absoluto | 127 de 534 | Casablanca (1942), 43,9 % | 20 | 4,397 |
+| relativo | **158 de 534** | **Labyrinth (1986), 41,1 %** | 22 | **3,948** |
+
+Top-5 del relativo: Labyrinth (1986) 41,1 %; Borat (2006) 38,9 %; Election
+(1999) 36,4 %; Brazil (1985) 36,1 %; No Country for Old Men (2007) 35,8 %.
+
+| criterio | valor | umbral | cumple |
+|---|---|---|---|
+| 1. la más frecuente en a lo sumo el 25 % | 41,1 % | ≤ 25 % | **no** |
+| 2. películas distintas | 158 | ≥ 127 | sí |
+| 3. baja del promedio de r̂ | 4,397 − 3,948 = 0,449 | ≤ 0,5 | sí |
+
+**El criterio no se cumple: falla el punto 1.**
+
+**Referencia, fuera del criterio: usuarios simulados con notas reales
+(3.000), el caso del front:**
+
+| ordenamiento | películas en algún top-10 | más frecuente | en > 20 % | promedio de r̂ recomendado |
+|---|---:|---|---:|---:|
+| absoluto | 65 de 534 | Harry Potter and the Order of the Phoenix (2007), 44,5 % | 23 | 4,522 |
+| relativo | 75 de 534 | City Slickers II: The Legend of Curly's Gold (1994), 56,2 % | 21 | 4,078 |
+
+Top-5 del relativo con simulados: City Slickers II (1994) 56,2 %; Congo
+(1995) 55,9 %; Mummy Returns, The (2001) 55,6 %; Pearl Harbor (2001) 55,0 %;
+American Pie 2 (2001) 54,0 %.
+
+Lectura: con usuarios reales, el ordenamiento relativo amplía la variedad
+(158 películas contra 127) a un costo moderado en r̂ (0,45 menos), pero la
+cima sigue concentrada: la más frecuente baja apenas de 43,9 % a 41,1 %, lejos
+del 25 %. Cambian las favoritas (de clásicos muy bien puntuados a películas
+más de nicho), no la concentración. En el caso del front (usuarios
+simulados), el relativo empeora la concentración (56,2 %) y sube al tope un
+grupo de películas comerciales poco valoradas: con k = 2, restar ū mueve la
+dirección de u de los usuarios nuevos hacia una zona donde gana otro borde
+de la nube de V. Es la misma limitación geométrica de k = 2 que en los
+experimentos anteriores.
