@@ -4,10 +4,11 @@ import numpy as np
 import pytest
 
 from src.errores import LambdaNegativoError
-from src.modelo import f_regularizada
+from src.modelo import f_regularizada, inicializar_factores
 import src.sesgos as sesgos
 from src.sesgos import (
     calcular_mu,
+    entrenar_als_sesgos,
     f_sesgos,
     paso_peliculas,
     paso_usuarios,
@@ -196,3 +197,70 @@ def test_los_dos_pasos_usan_resolver_factor(monkeypatch):
     F_usuarios, F_peliculas = llamadas
     np.testing.assert_array_equal(F_usuarios, np.hstack([V, np.ones((4, 1))]))
     np.testing.assert_array_equal(F_peliculas, np.hstack([U, np.ones((3, 1))]))
+
+
+# --- Entrenamiento ALS con sesgos ---
+
+
+def _entrenar(R, M, lambda_=0.5, max_iter=100, semilla=3):
+    m, n = R.shape
+    U0, V0 = inicializar_factores(
+        m=m, n=n, k=2, escala=1.0, generador=np.random.default_rng(semilla)
+    )
+    return entrenar_als_sesgos(
+        R, M, U0, V0, mu=calcular_mu(R, M), epsilon=1e-10, max_iter=max_iter, lambda_=lambda_
+    )
+
+
+def test_f_sesgos_no_crece_entre_iteraciones(matriz_ejemplo_informe):
+    # Cada paso minimiza f exactamente en sus incógnitas.
+    R, M = matriz_ejemplo_informe
+
+    resultado = _entrenar(R, M)
+
+    historial = np.array(resultado.historial_f)
+    assert len(historial) > 2
+    assert np.all(np.diff(historial) <= 1e-9)
+
+
+def test_historial_guarda_f_sesgos_del_modelo_final(matriz_ejemplo_informe):
+    R, M = matriz_ejemplo_informe
+
+    resultado = _entrenar(R, M, max_iter=7)
+
+    assert resultado.n_iteraciones == 7 and resultado.motivo_corte == "max_iter"
+    assert resultado.historial_f[-1] == pytest.approx(
+        f_sesgos(R, M, resultado.U, resultado.V, resultado.b, resultado.c, resultado.mu, 0.5)
+    )
+    assert resultado.mu == calcular_mu(R, M)
+
+
+def test_entrenar_als_sesgos_es_reproducible(matriz_ejemplo_informe):
+    R, M = matriz_ejemplo_informe
+
+    a = _entrenar(R, M)
+    b = _entrenar(R, M)
+
+    for x, y in [(a.U, b.U), (a.V, b.V), (a.b, b.b), (a.c, b.c)]:
+        assert np.array_equal(x, y)
+    assert a.historial_f == b.historial_f
+
+
+def test_entrenar_als_sesgos_aprende_sesgos_no_nulos():
+    # El usuario 0 califica todo con 5 y el resto reparte: su sesgo queda
+    # por encima del promedio de los sesgos.
+    R = np.array(
+        [
+            [5.0, 5.0, 5.0, 5.0, 5.0],
+            [1.0, 3.0, np.nan, 2.0, 4.0],
+            [2.0, np.nan, 3.0, 1.0, 3.0],
+            [3.0, 2.0, 1.0, np.nan, 2.0],
+            [np.nan, 1.0, 2.0, 3.0, 1.0],
+        ]
+    )
+    M = ~np.isnan(R)
+
+    resultado = _entrenar(R, M, lambda_=0.1)
+
+    assert resultado.b[0] > 0
+    assert resultado.b[0] > resultado.b[1:].max()
