@@ -98,3 +98,21 @@ SEMILLA_PARTICION: int = SEMILLA_DEFECTO
 # Semilla del sorteo de la partición. Por
 # referencia a SEMILLA_DEFECTO, no un literal: es una constante separada de
 # SEMILLA_INICIALIZACION, con su propio generador, que hoy comparte valor.
+
+ESCALA_MIN: float = 0.5
+ESCALA_MAX: float = 5.0
+# Escala de MovieLens latest-small: una
+# estimación está fuera de rango si cae fuera de [ESCALA_MIN − 1,
+# ESCALA_MAX + 1] = [−0,5; 6].
+
+# Criterios de éxito, fijados antes de correr
+# el experimento: se pueden cambiar hasta que arranque el experimento, no después.
+MIN_PELICULAS_EXITO: int = 130
+# Al menos 130 películas en algún top-10 (el doble de las 65 de main).
+MAX_FRECUENCIA_EXITO: float = 0.25
+# La más frecuente, en el top-10 de a lo sumo el 25 % de los usuarios.
+MAX_FRACCION_FUERA_DE_RANGO: float = 0.01
+# A lo sumo 1 % de estimaciones fuera de rango.
+TOLERANCIA_EMPATE: float = 0.01
+# Regla de empate de la selección: pares a menos del 1 % de la mejor
+# SCE de prueba se consideran empatados.
