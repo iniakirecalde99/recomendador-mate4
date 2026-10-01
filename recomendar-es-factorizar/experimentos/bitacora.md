@@ -388,3 +388,41 @@ favoritas cambian, pero siguen siendo pocas. Subir k sin regularización no
 es una salida (ver la recalibración: k = 3 y k = 5 hacen explotar r̂
 fuera de Ω). Queda como limitación de k = 2 en la sección 8 del informe.
 `src/` sigue sin centrado.
+
+## Experimento 3: concentración con los usuarios reales (sobre main)
+
+**Registrado antes de correr.** Usa el modelo de main sin cambios (no toca
+`src/`).
+
+### Pregunta
+
+Con usuarios reales, ¿el modelo de main concentra las recomendaciones como
+con usuarios simulados al azar?
+
+### Método
+
+- Modelo de main: ALS con k = 2 y los defaults de `config.py` (umbral=40,
+  epsilon=1, max_iter=3000, semilla 42), entrenado sobre todo Ω (321 usuarios
+  × 534 películas, 38.891 calificaciones).
+- Para cada uno de los 321 usuarios, top-10 entre las películas que no
+  calificó, con su fila de U entrenada: r̂ᵢⱼ = (U·Vᵀ)ᵢⱼ, de mayor a menor,
+  empates por índice (como `recomendaciones.recomendar_top_n`).
+- Se reportan: películas distintas en algún top-10, la más frecuente y el
+  porcentaje de usuarios en cuyo top-10 aparece, el top-5 de las más
+  frecuentes y cuántas aparecen en el top-10 de más del 20 % de los usuarios.
+- Script: `experimentos/usuarios_reales.py` (con test en
+  `tests/test_experimento_usuarios_reales.py`). Una sola corrida:
+  `python -m experimentos.usuarios_reales`, con los defaults.
+
+### Referencia
+
+Experimento de concentración (usuarios simulados con notas reales, mismo
+modelo): 65 de 534 películas en algún top-10; la más frecuente, Harry Potter
+and the Order of the Phoenix (2007), en el 44,5 %.
+
+No hay un criterio de decisión: es una medición descriptiva para comparar con
+esa referencia. El resultado se registra tal como salga.
+
+### Resultado
+
+(Pendiente: se completa con la salida de la corrida única.)
