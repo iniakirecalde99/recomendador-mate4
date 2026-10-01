@@ -607,3 +607,156 @@ calificadas y bien puntuadas, así que, medida por la más frecuente, la
 concentración no baja: sube. Las tres corridas tienen 0,00 % fuera de rango.
 
 Rama cerrada sin integrar. Ni centrado ni regularización reducen la concentración; main sigue con k = 2.
+
+## Experimento 3: concentración con los usuarios reales (sobre main)
+
+**Registrado antes de correr.** Usa el modelo de main sin cambios (no toca
+`src/`).
+
+### Pregunta
+
+Con usuarios reales, ¿el modelo de main concentra las recomendaciones como
+con usuarios simulados al azar?
+
+### Método
+
+- Modelo de main: ALS con k = 2 y los defaults de `config.py` (umbral=40,
+  epsilon=1, max_iter=3000, semilla 42), entrenado sobre todo Ω (321 usuarios
+  × 534 películas, 38.891 calificaciones).
+- Para cada uno de los 321 usuarios, top-10 entre las películas que no
+  calificó, con su fila de U entrenada: r̂ᵢⱼ = (U·Vᵀ)ᵢⱼ, de mayor a menor,
+  empates por índice (como `recomendaciones.recomendar_top_n`).
+- Se reportan: películas distintas en algún top-10, la más frecuente y el
+  porcentaje de usuarios en cuyo top-10 aparece, el top-5 de las más
+  frecuentes y cuántas aparecen en el top-10 de más del 20 % de los usuarios.
+- Script: `experimentos/usuarios_reales.py` (con test en
+  `tests/test_experimento_usuarios_reales.py`). Una sola corrida:
+  `python -m experimentos.usuarios_reales`, con los defaults.
+
+### Referencia
+
+Experimento de concentración (usuarios simulados con notas reales, mismo
+modelo): 65 de 534 películas en algún top-10; la más frecuente, Harry Potter
+and the Order of the Phoenix (2007), en el 44,5 %.
+
+No hay un criterio de decisión: es una medición descriptiva para comparar con
+esa referencia. El resultado se registra tal como salga.
+
+### Resultado
+
+Corrida única de `python -m experimentos.usuarios_reales`. El modelo es el
+de main: ALS en 10 iteraciones (tolerancia), SCE 22.937,3886.
+
+| | usuarios simulados (referencia) | usuarios reales |
+|---|---:|---:|
+| películas en algún top-10 | 65 de 534 | **127 de 534** |
+| la más frecuente | Harry Potter and the Order of the Phoenix (2007), 44,5 % | **Casablanca (1942), 43,9 %** |
+| películas en el top-10 de más del 20 % de los usuarios | 23 | 20 |
+
+Top-5 más frecuentes con usuarios reales: Casablanca (1942) 43,9 %; Boondock
+Saints, The (2000) 43,3 %; Wallace & Gromit: The Wrong Trousers (1993)
+37,4 %; Princess Bride, The (1987) 34,6 %; 12 Angry Men (1957) 32,4 %.
+
+Lectura: con usuarios reales aparecen casi el doble de películas distintas
+(127 contra 65), pero la concentración en la parte de arriba es la misma: la
+más frecuente sigue en el top-10 de alrededor del 44 % de los usuarios, y unas
+20 películas aparecen en el top-10 de más de uno de cada cinco. Una parte de
+la diferencia en películas distintas puede venir de cómo se arman los dos
+grupos: cada usuario real calificó al menos 40 películas, que quedan
+excluidas de su top-10, mientras que los simulados califican solo entre 5 y
+10 de las 30 más calificadas. Con usuarios reales, la concentración de main
+se confirma: no es un artefacto de la simulación.
+
+## Experimento 4: ordenar por la estimación relativa (sobre main)
+
+**Registrado antes de correr.** Usa el modelo de main sin cambios (no toca
+`src/`).
+
+### Pregunta
+
+¿Ordenar por la estimación relativa reduce la concentración con usuarios
+reales sin recomendar películas de estimación baja?
+
+### Método
+
+- Modelo: el mismo del experimento 3 (ALS de main, k = 2, defaults de
+  `config.py`, entrenado sobre todo Ω: 321 × 534).
+- ū = promedio de las filas de U entrenada.
+- Para cada usuario real, top-10 entre las películas que no calificó, con dos
+  ordenamientos:
+  - absoluto: r̂ᵢⱼ = Vⱼ · Uᵢ (el del experimento 3);
+  - relativo: Vⱼ · (Uᵢ − ū), que es r̂ᵢⱼ menos el promedio de r̂ de la
+    película j sobre todos los usuarios (lo verifica
+    `test_puntaje_relativo_es_r_hat_menos_el_promedio_de_la_pelicula_sobre_los_usuarios`).
+  En los dos, orden de mayor a menor con empates por índice.
+- Para cada ordenamiento se reporta: películas distintas en algún top-10, la
+  más frecuente y su porcentaje, películas en el top-10 de más del 20 % de
+  los usuarios y el promedio de r̂ᵢⱼ absoluto de las películas recomendadas.
+- Referencia, fuera del criterio: los mismos números con usuarios simulados
+  con notas reales (3.000, el mismo sorteo que `experimentos/concentracion.py`),
+  que es el caso del front. Para ellos, el relativo es V · (u − ū), con el ū
+  de los usuarios reales.
+- Script: `experimentos/ordenamiento_relativo.py` (con tests en
+  `tests/test_experimento_ordenamiento_relativo.py`; uno verifica que la
+  simulación con el ordenamiento absoluto da lo mismo que
+  `concentracion.simular`). Una sola corrida:
+  `python -m experimentos.ordenamiento_relativo`, con los defaults.
+
+### Criterio (fijado antes de correr; se evalúa sobre usuarios reales)
+
+Se cumple si se cumplen los tres, para el ordenamiento relativo:
+
+1. La más frecuente aparece en a lo sumo el 25 % de los top-10.
+2. Películas distintas en algún top-10: al menos 127 (no empeora respecto del
+   absoluto del experimento 3).
+3. El promedio de r̂ᵢⱼ absoluto de lo recomendado baja a lo sumo 0,5 respecto
+   del ordenamiento absoluto.
+
+### Resultado
+
+Corrida única de `python -m experimentos.ordenamiento_relativo`. Modelo de
+main: ALS en 10 iteraciones (tolerancia), SCE 22.937,3886; ū = (3,0302;
+3,2703). Los ordenamientos absolutos reproducen las referencias (127 y
+43,9 % con usuarios reales, como el experimento 3; 65 y 44,5 % con
+simulados, como el experimento de concentración).
+
+**Usuarios reales (321), sobre los que se evalúa el criterio:**
+
+| ordenamiento | películas en algún top-10 | más frecuente | en > 20 % | promedio de r̂ recomendado |
+|---|---:|---|---:|---:|
+| absoluto | 127 de 534 | Casablanca (1942), 43,9 % | 20 | 4,397 |
+| relativo | **158 de 534** | **Labyrinth (1986), 41,1 %** | 22 | **3,948** |
+
+Top-5 del relativo: Labyrinth (1986) 41,1 %; Borat (2006) 38,9 %; Election
+(1999) 36,4 %; Brazil (1985) 36,1 %; No Country for Old Men (2007) 35,8 %.
+
+| criterio | valor | umbral | cumple |
+|---|---|---|---|
+| 1. la más frecuente en a lo sumo el 25 % | 41,1 % | ≤ 25 % | **no** |
+| 2. películas distintas | 158 | ≥ 127 | sí |
+| 3. baja del promedio de r̂ | 4,397 − 3,948 = 0,449 | ≤ 0,5 | sí |
+
+**El criterio no se cumple: falla el punto 1.**
+
+**Referencia, fuera del criterio: usuarios simulados con notas reales
+(3.000), el caso del front:**
+
+| ordenamiento | películas en algún top-10 | más frecuente | en > 20 % | promedio de r̂ recomendado |
+|---|---:|---|---:|---:|
+| absoluto | 65 de 534 | Harry Potter and the Order of the Phoenix (2007), 44,5 % | 23 | 4,522 |
+| relativo | 75 de 534 | City Slickers II: The Legend of Curly's Gold (1994), 56,2 % | 21 | 4,078 |
+
+Top-5 del relativo con simulados: City Slickers II (1994) 56,2 %; Congo
+(1995) 55,9 %; Mummy Returns, The (2001) 55,6 %; Pearl Harbor (2001) 55,0 %;
+American Pie 2 (2001) 54,0 %.
+
+Lectura: con usuarios reales, el ordenamiento relativo amplía la variedad
+(158 películas contra 127) a un costo moderado en r̂ (0,45 menos), pero la
+cima sigue concentrada: la más frecuente baja apenas de 43,9 % a 41,1 %, lejos
+del 25 %. Cambian las favoritas (de clásicos muy bien puntuados a películas
+más de nicho), no la concentración. En el caso del front (usuarios
+simulados), el relativo empeora la concentración (56,2 %) y sube al tope un
+grupo de películas comerciales poco valoradas: con k = 2, restar ū mueve la
+dirección de u de los usuarios nuevos hacia una zona donde gana otro borde
+de la nube de V. Es la misma limitación geométrica de k = 2 que en los
+experimentos anteriores.
