@@ -49,3 +49,19 @@ def f_sesgos(
     error = np.where(M, R - predecir_con_sesgos(U, V, b, c, mu), 0.0)
     penalizacion = float(np.sum(U**2) + np.sum(V**2) + np.sum(b**2) + np.sum(c**2))
     return float(np.sum(error**2)) + lambda_ * penalizacion
+
+
+def puntajes_ordenamiento_a(
+    U: np.ndarray, V: np.ndarray, b: np.ndarray, c: np.ndarray, mu: float
+) -> np.ndarray:
+    """Ordenamiento A: por r̂ completo, μ + bᵢ + cⱼ + Uᵢ·Vⱼ."""
+    return predecir_con_sesgos(U, V, b, c, mu)
+
+
+def puntajes_ordenamiento_b(U: np.ndarray, V: np.ndarray) -> np.ndarray:
+    """Ordenamiento B: por la parte personal, Uᵢ·Vⱼ.
+
+    μ y bᵢ no cambian el orden de las películas de un usuario; se saca cⱼ,
+    así que B no depende del sesgo de las películas.
+    """
+    return predecir(U, V)

@@ -5,7 +5,13 @@ import pytest
 
 from src.errores import LambdaNegativoError
 from src.modelo import f_regularizada
-from src.sesgos import calcular_mu, f_sesgos, predecir_con_sesgos
+from src.sesgos import (
+    calcular_mu,
+    f_sesgos,
+    predecir_con_sesgos,
+    puntajes_ordenamiento_a,
+    puntajes_ordenamiento_b,
+)
 
 
 def _caso_chico():
@@ -78,3 +84,36 @@ def test_f_sesgos_con_lambda_negativo_lanza_lambda_negativo_error():
 
     with pytest.raises(LambdaNegativoError):
         f_sesgos(R, M, U, V, b, c, 3.0, -1.0)
+
+
+# --- Ordenamientos A y B ---
+
+
+def test_ordenamiento_a_es_r_hat_completo():
+    _, _, U, V, b, c = _caso_chico()
+
+    np.testing.assert_array_equal(
+        puntajes_ordenamiento_a(U, V, b, c, mu=3.0), predecir_con_sesgos(U, V, b, c, mu=3.0)
+    )
+
+
+def test_ordenamiento_b_no_depende_de_c():
+    _, _, U, V, b, c = _caso_chico()
+    otro_c = np.array([5.0, -3.0, 2.0])
+
+    np.testing.assert_array_equal(puntajes_ordenamiento_b(U, V), U @ V.T)
+    # B no recibe c; A sí cambia si cambia c
+    assert not np.array_equal(
+        puntajes_ordenamiento_a(U, V, b, c, 3.0), puntajes_ordenamiento_a(U, V, b, otro_c, 3.0)
+    )
+
+
+def test_ordenamiento_b_da_el_mismo_orden_por_usuario_que_r_hat_sin_c():
+    _, _, U, V, b, _ = _caso_chico()
+    sin_c = puntajes_ordenamiento_a(U, V, b, np.zeros(3), mu=3.0)  # μ + bᵢ + Uᵢ·Vⱼ
+
+    for i in range(U.shape[0]):
+        assert np.array_equal(
+            np.argsort(-puntajes_ordenamiento_b(U, V)[i], kind="stable"),
+            np.argsort(-sin_c[i], kind="stable"),
+        )
