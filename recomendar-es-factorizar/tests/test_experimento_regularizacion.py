@@ -322,3 +322,35 @@ def test_parser_toma_eta_y_max_reducciones_de_config():
     assert args.eta == config.ETA_DEFECTO
     assert args.max_reducciones_eta == config.MAX_REDUCCIONES_ETA
     assert config.MAX_REDUCCIONES_ETA == 3
+
+
+# --- Corrida de punta a punta sobre un dataset chico (sin MovieLens) ---
+
+
+def test_main_corre_de_punta_a_punta_sobre_dataset_chico(tmp_path, caplog):
+    generador = np.random.default_rng(11)
+    lineas_ratings = ["userId,movieId,rating,timestamp"]
+    for usuario in range(1, 21):
+        for pelicula in range(1, 26):
+            if generador.uniform() < 0.8:
+                nota = generador.integers(1, 11) / 2
+                lineas_ratings.append(f"{usuario},{pelicula},{nota},0")
+    (tmp_path / "ratings.csv").write_text("\n".join(lineas_ratings) + "\n", encoding="utf-8")
+    (tmp_path / "movies.csv").write_text(
+        "movieId,title,genres\n"
+        + "".join(f"{j},Película {j} (2000),Drama\n" for j in range(1, 26)),
+        encoding="utf-8",
+    )
+
+    with caplog.at_level("INFO"):
+        experimento.main([
+            "--datos", str(tmp_path), "--umbral", "5",
+            "--grilla-k", "2", "3", "--grilla-lambda", "0", "1",
+            "--max-iter", "50",
+        ])
+
+    assert "Par elegido" in caplog.text
+    assert "Reentrenado sobre todo Ω" in caplog.text
+    assert "GD (eta=" in caplog.text
+    assert "Concentración (notas reales)" in caplog.text
+    assert "Veredicto" in caplog.text

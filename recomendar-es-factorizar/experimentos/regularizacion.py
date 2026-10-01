@@ -16,6 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
+from experimentos import concentracion
 from src import config
 from src.als import entrenar_als
 from src.datos import particionar, preparar_datos_movielens
@@ -411,6 +412,44 @@ def main(argv: list[str] | None = None) -> None:
         )
     if verificacion.fallo:
         LOGGER.info("GD: falla (divergió en todos los intentos); el veredicto se evalúa con ALS.")
+
+    # Concentración con el modelo del par elegido entrenado con ALS
+    # sobre todo Ω (M completa, SEMILLA_INICIALIZACION), notas reales, sin
+    # centrado; nunca con el modelo de la partición.
+    resultado_concentracion = concentracion.simular(
+        R, M, datos.titulos_por_indice, centrar=False,
+        notas=concentracion.notas_reales(args.datos / "ratings.csv"),
+        k=elegido.k, epsilon=args.epsilon, max_iter=args.max_iter,
+        semilla=args.semilla_inicializacion,
+        n_usuarios=concentracion.N_USUARIOS_DEFECTO,
+        min_calificadas=concentracion.MIN_CALIFICADAS_DEFECTO,
+        max_calificadas=concentracion.MAX_CALIFICADAS_DEFECTO,
+        n_a_calificar=config.N_A_CALIFICAR_DEFECTO, top_n=config.TOP_N_DEFECTO,
+        semilla_simulacion=concentracion.SEMILLA_SIMULACION_DEFECTO,
+        umbral_frecuente=concentracion.UMBRAL_FRECUENTE_DEFECTO,
+        lambda_=elegido.lambda_,
+    )
+    LOGGER.info(
+        "Concentración (notas reales): %d de %d películas en algún top-%d; más frecuente: "
+        "%s (%.1f %%)",
+        resultado_concentracion.distintas_en_top_n, resultado_concentracion.n_peliculas,
+        config.TOP_N_DEFECTO, resultado_concentracion.mas_frecuente,
+        100 * resultado_concentracion.frecuencia_mas_frecuente,
+    )
+
+    veredicto = evaluar_criterios(
+        k=elegido.k,
+        sce_prueba_elegido=elegido.sce_prueba,
+        sce_prueba_k2_lambda0=base.sce_prueba if base is not None else math.nan,
+        fraccion_fuera_de_rango=fraccion,
+        peliculas_en_algun_top=resultado_concentracion.distintas_en_top_n,
+        frecuencia_mas_frecuente=resultado_concentracion.frecuencia_mas_frecuente,
+    )
+    LOGGER.info(
+        "Veredicto: %s; criterios %s",
+        "EXITOSO" if veredicto.exitoso else "NO exitoso",
+        ", ".join(f"{n}: {'sí' if ok else 'no'}" for n, ok in veredicto.criterios.items()),
+    )
 
 
 if __name__ == "__main__":

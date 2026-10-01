@@ -81,6 +81,7 @@ def simular(
     top_n: int,
     semilla_simulacion: int,
     umbral_frecuente: float,
+    lambda_: float = 0.0,
 ) -> ResultadoSimulacion:
     """Entrena ALS (sobre R o sobre R − μ) y simula `n_usuarios` usuarios nuevos.
 
@@ -88,6 +89,10 @@ def simular(
     se entrena sobre R − μ, el usuario nuevo se resuelve con sus notas − μ y
     la predicción es μ + Vⱼ·u. `notas=None` sortea notas uniformes de 1 a 5;
     si no, sortea de ese arreglo.
+
+    `lambda_` (default 0, como main) regulariza el entrenamiento de ALS y el
+    vector u de cada usuario simulado. El modelo
+    se entrena siempre sobre la M recibida, que tiene que ser todo Ω.
     """
     mu = float(np.mean(R[M])) if centrar else 0.0
     m, n = R.shape
@@ -95,7 +100,9 @@ def simular(
         m=m, n=n, k=k, escala=config.ESCALA_INICIALIZACION_DEFECTO,
         generador=np.random.default_rng(semilla),
     )
-    resultado_als = entrenar_als(R - mu, M, U0, V0, epsilon=epsilon, max_iter=max_iter)
+    resultado_als = entrenar_als(
+        R - mu, M, U0, V0, epsilon=epsilon, max_iter=max_iter, lambda_=lambda_
+    )
     V = resultado_als.V
     max_fuera = float(np.abs(mu + predecir(resultado_als.U, V))[~M].max())
 
@@ -112,8 +119,9 @@ def simular(
         else:
             r[elegidas] = generador.choice(notas, size=cantidad)
 
-        # Informe 5: paso de U de ALS con V fija, para el usuario nuevo.
-        u = resolver_factor((r - mu)[None, :], ~np.isnan(r)[None, :], V)[0]
+        # Informe 5: paso de U de ALS con V fija, para el usuario nuevo
+        # (con el mismo λ que el modelo).
+        u = resolver_factor((r - mu)[None, :], ~np.isnan(r)[None, :], V, lambda_=lambda_)[0]
         if k == 2:
             angulos.append(np.degrees(np.arctan2(u[1], u[0])))
         r_hat = mu + V @ u
@@ -157,6 +165,7 @@ def construir_parser() -> argparse.ArgumentParser:
     parser.add_argument("--top-n", type=int, default=config.TOP_N_DEFECTO)
     parser.add_argument("--semilla-simulacion", type=int, default=SEMILLA_SIMULACION_DEFECTO)
     parser.add_argument("--umbral-frecuente", type=float, default=UMBRAL_FRECUENTE_DEFECTO)
+    parser.add_argument("--lambda", dest="lambda_", type=float, default=0.0)
     return parser
 
 
@@ -184,7 +193,7 @@ def main(argv: list[str] | None = None) -> None:
                 n_usuarios=args.n_usuarios, min_calificadas=args.min_calificadas,
                 max_calificadas=args.max_calificadas, n_a_calificar=args.n_a_calificar,
                 top_n=args.top_n, semilla_simulacion=args.semilla_simulacion,
-                umbral_frecuente=args.umbral_frecuente,
+                umbral_frecuente=args.umbral_frecuente, lambda_=args.lambda_,
             )
             p5, p50, p95 = res.angulo_u_p5_p50_p95
             LOGGER.info(
