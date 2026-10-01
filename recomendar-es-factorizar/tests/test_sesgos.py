@@ -5,9 +5,12 @@ import pytest
 
 from src.errores import LambdaNegativoError
 from src.modelo import f_regularizada
+import src.sesgos as sesgos
 from src.sesgos import (
     calcular_mu,
     f_sesgos,
+    paso_peliculas,
+    paso_usuarios,
     predecir_con_sesgos,
     puntajes_ordenamiento_a,
     puntajes_ordenamiento_b,
@@ -117,3 +120,79 @@ def test_ordenamiento_b_da_el_mismo_orden_por_usuario_que_r_hat_sin_c():
             np.argsort(-puntajes_ordenamiento_b(U, V)[i], kind="stable"),
             np.argsort(-sin_c[i], kind="stable"),
         )
+
+
+# --- Paso aumentado con resolver_factor ---
+
+
+def _matriz_paso():
+    # 3 usuarios × 4 películas, k = 2, factores bien condicionados.
+    R = np.array(
+        [
+            [5.0, 3.0, np.nan, 1.0],
+            [np.nan, 4.0, 2.0, 5.0],
+            [2.0, np.nan, 4.5, 3.0],
+        ]
+    )
+    M = ~np.isnan(R)
+    U = np.array([[1.0, 0.3], [0.2, 1.1], [0.7, 0.6]])
+    V = np.array([[1.0, 0.2], [0.3, 1.1], [0.8, 0.5], [0.1, 0.9]])
+    b = np.array([0.4, -0.2, 0.1])
+    c = np.array([0.3, -0.1, 0.2, -0.4])
+    return R, M, U, V, b, c
+
+
+def _resolver_a_mano(objetivo, M, F, lambda_):
+    """Para cada fila: (F_aᵀ F_a + λ I) x = F_aᵀ y, con F_a = [F | 1] en las columnas observadas."""
+    k = F.shape[1]
+    solucion = np.empty((objetivo.shape[0], k + 1))
+    for i in range(objetivo.shape[0]):
+        obs = np.where(M[i])[0]
+        F_a = np.hstack([F[obs], np.ones((len(obs), 1))])
+        y = objetivo[i, obs]
+        solucion[i] = np.linalg.solve(F_a.T @ F_a + lambda_ * np.eye(k + 1), F_a.T @ y)
+    return solucion
+
+
+def test_paso_usuarios_coincide_con_el_sistema_de_k_mas_1_incognitas():
+    # Incógnitas (U_i, b_i), objetivo r_ij − μ − c_j.
+    R, M, _, V, _, c = _matriz_paso()
+    mu, lambda_ = 3.2, 0.7
+
+    U, b = paso_usuarios(R, M, V, c, mu, lambda_)
+
+    esperado = _resolver_a_mano(R - mu - c[None, :], M, V, lambda_)
+    assert np.allclose(U, esperado[:, :2], rtol=1e-10)
+    assert np.allclose(b, esperado[:, 2], rtol=1e-10)
+
+
+def test_paso_peliculas_coincide_con_el_sistema_de_k_mas_1_incognitas():
+    # Incógnitas (V_j, c_j), objetivo r_ij − μ − b_i.
+    R, M, U, _, b, _ = _matriz_paso()
+    mu, lambda_ = 3.2, 0.7
+
+    V, c = paso_peliculas(R, M, U, b, mu, lambda_)
+
+    esperado = _resolver_a_mano((R - mu - b[:, None]).T, M.T, U, lambda_)
+    assert np.allclose(V, esperado[:, :2], rtol=1e-10)
+    assert np.allclose(c, esperado[:, 2], rtol=1e-10)
+
+
+def test_los_dos_pasos_usan_resolver_factor(monkeypatch):
+    R, M, U, V, b, c = _matriz_paso()
+    llamadas = []
+    resolver_real = sesgos.resolver_factor
+
+    def resolver_espia(R_, M_, F, lambda_=0.0):
+        llamadas.append(F.copy())
+        return resolver_real(R_, M_, F, lambda_)
+
+    monkeypatch.setattr(sesgos, "resolver_factor", resolver_espia)
+
+    paso_usuarios(R, M, V, c, 3.2, 0.7)
+    paso_peliculas(R, M, U, b, 3.2, 0.7)
+
+    assert len(llamadas) == 2
+    F_usuarios, F_peliculas = llamadas
+    np.testing.assert_array_equal(F_usuarios, np.hstack([V, np.ones((4, 1))]))
+    np.testing.assert_array_equal(F_peliculas, np.hstack([U, np.ones((3, 1))]))
