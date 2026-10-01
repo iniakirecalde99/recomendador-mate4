@@ -5,8 +5,8 @@ import time
 
 import numpy as np
 
-from src.errores import LambdaNegativoError, SistemaSingularError
-from src.modelo import ResultadoEntrenamiento, sce
+from src.errores import SistemaSingularError
+from src.modelo import ResultadoEntrenamiento, sce, validar_lambda
 
 LOGGER = logging.getLogger(__name__)
 
@@ -31,8 +31,7 @@ def resolver_factor(
     regularizadas, resultan singulares (por ejemplo, con λ = 0 y menos
     observaciones que columnas de F).
     """
-    if lambda_ < 0:
-        raise LambdaNegativoError(lambda_)
+    validar_lambda(lambda_)
 
     m = R.shape[0]
     k = F.shape[1]

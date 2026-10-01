@@ -1,8 +1,10 @@
 """Predicción, SCE e inicialización compartida."""
 
 import numpy as np
+import pytest
 
-from src.modelo import inicializar_factores, predecir, sce
+from src.errores import LambdaNegativoError
+from src.modelo import f_regularizada, inicializar_factores, predecir, sce, validar_lambda
 
 
 def test_predecir_calcula_u_por_vt():
@@ -46,3 +48,57 @@ def test_inicializar_factores_reproducible_con_la_misma_semilla():
     assert (V1 >= 0).all() and (V1 < 2.0).all()
     np.testing.assert_array_equal(U1, U2)
     np.testing.assert_array_equal(V1, V2)
+
+
+# --- F regularizada y validar_lambda ---
+
+
+def _caso_2x2():
+    # U·Vᵀ = [[1, 3], [0, 1]]; Ω = {(0,0), (1,0), (1,1)}; (0,1) es hueco.
+    R = np.array([[3.0, np.nan], [1.0, 2.0]])
+    M = ~np.isnan(R)
+    U = np.array([[1.0, 2.0], [0.0, 1.0]])
+    V = np.array([[1.0, 0.0], [1.0, 1.0]])
+    return R, M, U, V
+
+
+def test_f_regularizada_con_lambda_cero_es_la_sce():
+    R, M, U, V = _caso_2x2()
+
+    assert f_regularizada(R, M, U, V, lambda_=0.0) == sce(R, M, U, V)  # igualdad exacta
+
+
+def test_f_regularizada_suma_lambda_por_normas_al_cuadrado():
+    R, M, U, V = _caso_2x2()
+    # SCE sobre Ω: (3-1)² + (1-0)² + (2-1)² = 6
+    # Σ‖U_i‖² = 1+4+0+1 = 6, Σ‖V_j‖² = 1+0+1+1 = 3 → λ·9
+    lambda_ = 0.5
+
+    assert f_regularizada(R, M, U, V, lambda_=lambda_) == pytest.approx(6.0 + 0.5 * 9.0)
+
+
+def test_f_regularizada_ignora_valores_fuera_de_omega():
+    R, M, U, V = _caso_2x2()
+    R_modificada = R.copy()
+    R_modificada[0, 1] = 1000.0  # fuera de Ω: no tiene que cambiar f
+
+    assert f_regularizada(R_modificada, M, U, V, lambda_=0.5) == f_regularizada(
+        R, M, U, V, lambda_=0.5
+    )
+
+
+def test_f_regularizada_con_lambda_negativo_lanza_lambda_negativo_error():
+    R, M, U, V = _caso_2x2()
+
+    with pytest.raises(LambdaNegativoError, match=r"-1"):
+        f_regularizada(R, M, U, V, lambda_=-1.0)
+
+
+def test_validar_lambda_acepta_cero_y_positivos_y_rechaza_negativos():
+    validar_lambda(0.0)
+    validar_lambda(2.5)
+
+    with pytest.raises(LambdaNegativoError) as exc_info:
+        validar_lambda(-0.1)
+
+    assert exc_info.value.lambda_ == -0.1
