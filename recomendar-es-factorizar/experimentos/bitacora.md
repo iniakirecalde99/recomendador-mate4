@@ -447,3 +447,52 @@ grupos: cada usuario real calificó al menos 40 películas, que quedan
 excluidas de su top-10, mientras que los simulados califican solo entre 5 y
 10 de las 30 más calificadas. Con usuarios reales, la concentración de main
 se confirma: no es un artefacto de la simulación.
+
+## Experimento 4: ordenar por la estimación relativa (sobre main)
+
+**Registrado antes de correr.** Usa el modelo de main sin cambios (no toca
+`src/`).
+
+### Pregunta
+
+¿Ordenar por la estimación relativa reduce la concentración con usuarios
+reales sin recomendar películas de estimación baja?
+
+### Método
+
+- Modelo: el mismo del experimento 3 (ALS de main, k = 2, defaults de
+  `config.py`, entrenado sobre todo Ω: 321 × 534).
+- ū = promedio de las filas de U entrenada.
+- Para cada usuario real, top-10 entre las películas que no calificó, con dos
+  ordenamientos:
+  - absoluto: r̂ᵢⱼ = Vⱼ · Uᵢ (el del experimento 3);
+  - relativo: Vⱼ · (Uᵢ − ū), que es r̂ᵢⱼ menos el promedio de r̂ de la
+    película j sobre todos los usuarios (lo verifica
+    `test_puntaje_relativo_es_r_hat_menos_el_promedio_de_la_pelicula_sobre_los_usuarios`).
+  En los dos, orden de mayor a menor con empates por índice.
+- Para cada ordenamiento se reporta: películas distintas en algún top-10, la
+  más frecuente y su porcentaje, películas en el top-10 de más del 20 % de
+  los usuarios y el promedio de r̂ᵢⱼ absoluto de las películas recomendadas.
+- Referencia, fuera del criterio: los mismos números con usuarios simulados
+  con notas reales (3.000, el mismo sorteo que `experimentos/concentracion.py`),
+  que es el caso del front. Para ellos, el relativo es V · (u − ū), con el ū
+  de los usuarios reales.
+- Script: `experimentos/ordenamiento_relativo.py` (con tests en
+  `tests/test_experimento_ordenamiento_relativo.py`; uno verifica que la
+  simulación con el ordenamiento absoluto da lo mismo que
+  `concentracion.simular`). Una sola corrida:
+  `python -m experimentos.ordenamiento_relativo`, con los defaults.
+
+### Criterio (fijado antes de correr; se evalúa sobre usuarios reales)
+
+Se cumple si se cumplen los tres, para el ordenamiento relativo:
+
+1. La más frecuente aparece en a lo sumo el 25 % de los top-10.
+2. Películas distintas en algún top-10: al menos 127 (no empeora respecto del
+   absoluto del experimento 3).
+3. El promedio de r̂ᵢⱼ absoluto de lo recomendado baja a lo sumo 0,5 respecto
+   del ordenamiento absoluto.
+
+### Resultado
+
+(Pendiente: se completa con la salida de la corrida única.)
