@@ -43,7 +43,7 @@ de cada uno está comentado ahí.
 
 - `src/`: carga de datos, modelo compartido, ALS (`als.py`), descenso de
   gradiente (`gradiente.py`), recomendaciones, demo y front.
-- `entrega.ipynb`: el notebook para Google Colab.
+- `entrega.ipynb` (solo en la rama `google-colab`): el notebook para Google Colab.
 - `experimentos/`: scripts de los experimentos de concentración.
 - `tests/`: tests de cada parte del código.
 
