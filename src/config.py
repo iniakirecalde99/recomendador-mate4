@@ -1,8 +1,7 @@
 """Valores por defecto de los hiperparámetros de la demo.
 
 Valores definitivos, recalibrados sobre MovieLens latest-small real con el
-mismo experimento que se hizo para MovieLens 100K (tablas completas y conclusión en experimentos/bitacora.md, "Recalibración"). El
-criterio de cada uno queda como comentario debajo de la constante; lo
+mismo experimento que se hizo para MovieLens 100K. El criterio de cada uno queda como comentario debajo de la constante; lo
 verifica tests/test_calibracion.py.
 """
 
@@ -11,7 +10,7 @@ from pathlib import Path
 # --- Preprocesamiento y modelo ---
 
 UMBRAL_DEFECTO: int = 40
-# Motivo (recalibración sobre MovieLens latest-small, ver experimentos/bitacora.md):
+# Motivo (recalibración sobre MovieLens latest-small):
 # menor umbral, de 10/20/30/35/40/50 probados, donde ALS y GD con k=2 dan
 # max|r_hat| fuera de Ω < 7 para los dos a la vez (6.4 y 5.9; con
 # umbral=35 ALS da 7.2, con 30 da 8.5). Deja 321 usuarios × 534 películas,

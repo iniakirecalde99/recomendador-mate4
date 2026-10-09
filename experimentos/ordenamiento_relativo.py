@@ -1,6 +1,6 @@
 """Experimento 4: ordenar las recomendaciones por la estimación relativa.
 
-Respalda el experimento 4 de experimentos/bitacora.md. Con el modelo de main (ALS,
+Experimento 4 de concentración. Con el modelo de main (ALS,
 k = 2, defaults de `config.py`, entrenado sobre todo Ω) compara dos
 ordenamientos del top-N de cada usuario, entre las películas que no calificó:
 

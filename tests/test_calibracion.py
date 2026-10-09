@@ -1,5 +1,5 @@
 """Los defaults de config.py cumplen el criterio de calibración
-sobre MovieLens latest-small real (experimentos/bitacora.md, "Recalibración").
+sobre MovieLens latest-small real.
 
 Criterio: con los defaults, ALS y GD cortan por tolerancia, GD sin que f
 aumente nunca, y las predicciones fuera de Ω quedan en el rango de las

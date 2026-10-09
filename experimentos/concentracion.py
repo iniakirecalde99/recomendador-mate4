@@ -1,7 +1,6 @@
 """Experimento: concentración de las recomendaciones con k = 2, sin y con centrado.
 
-Respalda la tabla de la sección 8 del informe (experimentos/bitacora.md, "Experimento
-de concentración"). No es parte de la demo ni del modelo: el centrado por el
+Respalda la tabla de la sección 8 del informe. No es parte de la demo ni del modelo: el centrado por el
 promedio global μ vive solo acá, para comparar; el camino principal (`src/`)
 no centra.
 

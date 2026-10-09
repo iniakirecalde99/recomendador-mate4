@@ -1,4 +1,4 @@
-"""Módulo compartido entre ALS y descenso de gradiente."""
+"""Módulo compartido entre ALS y descenso de gradiente: predicción, SCE e inicialización."""
 
 from dataclasses import dataclass
 

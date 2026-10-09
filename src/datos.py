@@ -84,8 +84,7 @@ def filtrar_por_minimo(datos: ConjuntoCalificaciones, umbral: int, k: int) -> Co
     única — pero tener exactamente k observaciones no alcanza para que esa
     solución sea razonable (la calibración con MovieLens real mostró
     `SistemaSingularError` y predicciones fuera de Ω con magnitud absurda
-    incluso con umbral == k; ver
-    experimentos/bitacora.md). Lanza `UmbralInsuficienteError` si `umbral` < `k`.
+    incluso con umbral == k). Lanza `UmbralInsuficienteError` si `umbral` < `k`.
 
     Repite la eliminación hasta que una pasada no elimine nada: sacar una
     columna puede dejar a una fila por debajo del umbral (o viceversa), así
@@ -185,7 +184,8 @@ def cargar_generos(ruta_movies: Path) -> dict[int, list[str]]:
 
     Salen de la columna `genres` de `movies.csv`, separados por `|`, tal
     como los escribe MovieLens (incluido `(no genres listed)`). Solo se usan
-    para mostrar: el modelo no ve los géneros (las dimensiones latentes emergen del entrenamiento).
+    para mostrar: el modelo no ve los géneros: las
+    dimensiones latentes emergen del entrenamiento.
     """
     generos_por_id: dict[int, list[str]] = {}
     with Path(ruta_movies).open(encoding="utf-8", newline="") as archivo:

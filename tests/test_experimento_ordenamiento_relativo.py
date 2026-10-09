@@ -1,4 +1,4 @@
-"""Experimento 4 (experimentos/bitacora.md): ordenar por la estimación relativa."""
+"""Experimento 4: ordenar por la estimación relativa."""
 
 import numpy as np
 import pytest

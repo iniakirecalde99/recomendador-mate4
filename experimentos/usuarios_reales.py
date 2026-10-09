@@ -1,6 +1,6 @@
 """Experimento 3: concentración de las recomendaciones para los usuarios reales.
 
-Respalda el experimento 3 de experimentos/bitacora.md. Con el modelo de main (ALS,
+Experimento 3 de concentración. Con el modelo de main (ALS,
 k = 2, defaults de `config.py`, entrenado sobre todo Ω), arma el top-N de
 cada usuario real del conjunto filtrado con su fila de U entrenada, entre
 las películas que no calificó, y mide cuánto se repiten las películas. Es la

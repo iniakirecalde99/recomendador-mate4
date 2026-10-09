@@ -51,7 +51,7 @@ def comparar_metodos(
 
 
 def formatear_tabla_comparacion(filas: list[FilaComparacion]) -> str:
-    """Arma la tabla de la sección 9 como texto plano alineado con f-strings.
+    """Arma la tabla de comparación como texto plano alineado con f-strings.
 
     Sin dependencias nuevas (nada de pandas ni tabulate). Columnas: método, iteraciones, motivo de corte, tiempo (s),
     SCE final. Decimales con punto; el pasaje a coma para pegar en el

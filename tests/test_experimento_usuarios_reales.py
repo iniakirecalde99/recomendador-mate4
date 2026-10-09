@@ -1,4 +1,4 @@
-"""Experimento 3 (experimentos/bitacora.md): concentración del top-10 de los usuarios reales."""
+"""Experimento 3: concentración del top-10 de los usuarios reales."""
 
 import numpy as np
 
