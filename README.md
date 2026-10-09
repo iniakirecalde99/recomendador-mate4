@@ -8,12 +8,21 @@ ejecutable de un informe escrito: cada fórmula implementada coincide con la del
 informe, y todo el álgebra está escrita con numpy, sin librerías que
 factoricen o recomienden.
 
-## Cómo correrlo
+## En Google Colab
+
+[![Abrir en Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/iniakirecalde99/recomendar-es-factorizar/blob/google-colab/entrega.ipynb)
+
+`entrega.ipynb` tiene todo el código del modelo en sus celdas (no importa
+nada de `src/`), explicado paso a paso. Se abre con el botón de arriba y se
+corre con *Entorno de ejecución → Ejecutar todo*: descarga MovieLens solo,
+entrena ALS y descenso de gradiente, compara la convergencia, muestra
+recomendaciones y permite probar con calificaciones propias.
+
+## Cómo correrlo en una computadora
 
 Requiere Python 3.11 o superior.
 
 ```bash
-cd recomendar-es-factorizar
 python -m venv .venv
 .venv\Scripts\activate          # en Linux o macOS: source .venv/bin/activate
 pip install -r requirements.txt
@@ -29,14 +38,14 @@ pytest -q                               # tests
 
 Los hiperparámetros por defecto (umbral = 40, k = 2, η = 5e-4, ε = 1,
 semilla 42) están en `src/config.py`, calibrados sobre MovieLens; el criterio
-de cada uno está comentado ahí y en `experimentos/bitacora.md`.
+de cada uno está comentado ahí.
 
 ## Cómo está organizado
 
 - `src/`: carga de datos, modelo compartido, ALS (`als.py`), descenso de
   gradiente (`gradiente.py`), recomendaciones, demo y front.
-- `experimentos/`: scripts de los experimentos registrados en la bitácora.
-- `experimentos/bitacora.md`: el registro de calibraciones y experimentos.
+- `entrega.ipynb`: el notebook para Google Colab.
+- `experimentos/`: scripts de los experimentos de concentración.
 - `tests/`: tests de cada parte del código.
 
 ## Ramas
