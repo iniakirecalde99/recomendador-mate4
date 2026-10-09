@@ -13,8 +13,9 @@ está escrita con numpy, sin librerías que factoricen o recomienden.
 `entrega.ipynb` tiene todo el código del modelo en sus celdas (no importa
 nada de `src/`), explicado paso a paso. Se abre con el botón de arriba y se
 corre con *Entorno de ejecución → Ejecutar todo*: descarga MovieLens solo,
-entrena ALS y descenso de gradiente, compara la convergencia, muestra
-recomendaciones y permite probar con calificaciones propias.
+entrena ALS y descenso de gradiente y compara la convergencia. Después entrena
+el modelo con sesgos de `experimento/sesgos` (k = 20, λ = 10), que fue el de
+mejor resultado, y lo usa para recomendar, también con calificaciones propias.
 
 ## Cómo correrlo en una computadora
 
@@ -51,6 +52,7 @@ de cada uno está comentado ahí.
 | Rama | Qué contiene |
 |---|---|
 | `main` | El modelo principal: k = 2, sin regularización. Incluye los experimentos de concentración de las recomendaciones (con usuarios simulados y reales, centrado y ordenamiento relativo): con k = 2 unas pocas películas acaparan los top-10. |
+| `google-colab` | La versión de entrega: `main` más el notebook `entrega.ipynb` para correr todo en Google Colab sin instalar nada. El notebook compara ALS y descenso de gradiente y recomienda con el modelo con sesgos de `experimento/sesgos`. El botón de Colab de arriba apunta a esta rama. |
 | `experimento/regularizacion` | Prueba de la regularización λ para usar k > 2. Resultado: elimina las estimaciones absurdas fuera del rango, pero no reduce la concentración. Cerrada sin integrar. |
 | `experimento/sesgos` | Modelo con sesgos por usuario y por película, r̂ = μ + bᵢ + cⱼ + Uᵢ·Vⱼ. Ordenar por la parte personal (U·Vᵀ) reduce la concentración por debajo de los umbrales fijados de antemano. Incluye un recomendador HTML con sesgos (`python -m experimentos.front_sesgos`). |
 
