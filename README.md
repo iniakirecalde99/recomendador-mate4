@@ -8,7 +8,7 @@ está escrita con numpy, sin librerías que factoricen o recomienden.
 
 ## En Google Colab
 
-[![Abrir en Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/iniakirecalde99/recomendar-es-factorizar/blob/google-colab/entrega.ipynb)
+[![Abrir en Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/iniakirecalde99/recomendar-es-factorizar-mate4/blob/google-colab/entrega.ipynb)
 
 `entrega.ipynb` tiene todo el código del modelo en sus celdas (no importa
 nada de `src/`), explicado paso a paso. Se abre con el botón de arriba y se
