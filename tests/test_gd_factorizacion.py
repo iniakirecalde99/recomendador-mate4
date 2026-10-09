@@ -1,4 +1,4 @@
-"""Gradiente de la SCE y GD matricial (informe 3.4/6)."""
+"""Gradiente de la SCE y GD matricial."""
 
 import logging
 
@@ -86,9 +86,9 @@ def test_entrenar_gd_lanza_divergencia_si_f_no_es_finito(matriz_pequena_aleatori
 
 
 def test_entrenar_gd_loguea_debug_por_iteracion_e_info_cada_100_y_resumen(
-    matriz_ejemplo_informe, generador_fijo, caplog
+    matriz_ejemplo, generador_fijo, caplog
 ):
-    R, M = matriz_ejemplo_informe
+    R, M = matriz_ejemplo
     U0, V0 = inicializar_factores(m=4, n=5, k=2, escala=1.0, generador=generador_fijo)
 
     # epsilon=0.0 nunca corta por tolerancia: fuerza exactamente max_iter

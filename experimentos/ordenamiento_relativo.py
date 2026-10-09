@@ -131,7 +131,7 @@ def simular_ambos_ordenamientos(
     """Usuarios simulados como en `concentracion.simular` (sin centrado), con los dos ordenamientos.
 
     Repite el mismo sorteo que `concentracion.simular` (misma secuencia de
-    llamadas al generador), resuelve u con V fija (informe 5) y ordena por
+    llamadas al generador), resuelve u con V fija y ordena por
     V·u (absoluto) y por V·(u − ū) (relativo), con ū el promedio de las filas
     de U de los usuarios reales. Devuelve (absoluto, relativo).
     """
@@ -148,7 +148,7 @@ def simular_ambos_ordenamientos(
         r = np.full(n, np.nan)
         r[elegidas] = generador.choice(notas, size=cantidad)
 
-        # Informe 5: paso de U de ALS con V fija, para el usuario nuevo.
+        # Paso de U de ALS con V fija, para el usuario nuevo.
         u = resolver_factor(r[None, :], ~np.isnan(r)[None, :], V)[0]
         R_hat[s] = V @ u
         M_simulados[s, elegidas] = True

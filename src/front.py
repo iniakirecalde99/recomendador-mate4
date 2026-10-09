@@ -1,4 +1,4 @@
-"""Recomendador HTML para un usuario nuevo, con la V de ALS fija (informe 5).
+"""Recomendador HTML para un usuario nuevo, con la V de ALS fija.
 
 `python -m src.front` entrena ALS sobre MovieLens y genera una página
 estática (sin servidor ni dependencias externas) con V y los títulos
@@ -259,7 +259,7 @@ const datos = JSON.parse(document.getElementById("datos").textContent);
 const V = datos.V;
 const calificaciones = new Map();  // índice de película -> calificación 1..5
 
-// Informe 5: paso de U de ALS con V fija. Para el usuario nuevo se arman las
+// Paso de U de ALS con V fija. Para el usuario nuevo se arman las
 // ecuaciones normales (V_Ωᵀ V_Ω) u = V_Ωᵀ r sobre las películas calificadas,
 // igual que resolver_factor en src/als.py, y el sistema 2×2 se resuelve con
 // la fórmula cerrada (regla de Cramer).

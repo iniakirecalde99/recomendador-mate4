@@ -22,8 +22,8 @@ def generador_fijo() -> np.random.Generator:
 
 
 @pytest.fixture
-def matriz_ejemplo_informe() -> tuple[np.ndarray, np.ndarray]:
-    """Matriz Ana/Bruno/Carla/Diego del ejemplo del informe, con k=2.
+def matriz_ejemplo() -> tuple[np.ndarray, np.ndarray]:
+    """Matriz chica de ejemplo Ana/Bruno/Carla/Diego, con k=2.
 
     Columnas: Toy Story, Star Wars, Fargo, Titanic, Scream.
     """

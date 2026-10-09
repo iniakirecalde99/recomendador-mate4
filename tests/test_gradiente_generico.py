@@ -1,4 +1,4 @@
-"""Descenso de gradiente genérico (informe 3.4)."""
+"""Descenso de gradiente genérico."""
 
 import numpy as np
 
@@ -6,7 +6,7 @@ from src.gradiente import descenso_gradiente
 
 
 def test_descenso_gradiente_converge_al_minimo_conocido():
-    # f(x,y) = (x-1)^2 + (y-2)^2 + (x+y-6)^2 (informe 3.4, tabla 2).
+    # f(x,y) = (x-1)^2 + (y-2)^2 + (x+y-6)^2.
     # Mínimo analítico en (2, 3), con f = 3.
     def f(x):
         return (x[0] - 1) ** 2 + (x[1] - 2) ** 2 + (x[0] + x[1] - 6) ** 2

@@ -1,4 +1,4 @@
-"""Descenso de gradiente: versión genérica y descenso completo sobre la factorización (informe 3.4 y 6)."""
+"""Descenso de gradiente: versión genérica y descenso completo sobre la factorización."""
 
 import logging
 import time
@@ -38,7 +38,7 @@ def descenso_gradiente(
     epsilon: float,
     max_iter: int,
 ) -> ResultadoDescensoGenerico:
-    """Descenso de gradiente genérico para funciones de ℝⁿ (informe 3.4).
+    """Descenso de gradiente genérico para funciones de ℝⁿ.
 
     En cada iteración actualiza x ← x − eta · grad_f(x) hasta que
     |f(t+1) − f(t)| < epsilon o se alcanza `max_iter`.
@@ -85,13 +85,13 @@ def descenso_gradiente(
 def gradiente_sce(
     R: np.ndarray, M: np.ndarray, U: np.ndarray, V: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Calcula ∇_U f y ∇_V f de la SCE, sin factor 1/2 (informe 3.4/6).
+    """Calcula ∇_U f y ∇_V f de la SCE, sin factor 1/2.
 
     Con E = M ⊙ (R − U·Vᵀ) (error solo sobre Ω, cero fuera):
     ∇_U f = −2·E·V, ∇_V f = −2·Eᵀ·U, ambos evaluados en el mismo (U, V)
     recibido.
     """
-    # Informe 3.4/6: gradientes de la SCE respecto de U y de V.
+    # Gradientes de la SCE respecto de U y de V.
     E = np.where(M, R - predecir(U, V), 0.0)
     grad_U = -2 * E @ V
     grad_V = -2 * E.T @ U
@@ -107,7 +107,7 @@ def entrenar_gd(
     epsilon: float,
     max_iter: int,
 ) -> ResultadoEntrenamiento:
-    """Descenso de gradiente completo sobre la factorización (informe 3.4 y 6).
+    """Descenso de gradiente completo sobre la factorización.
 
     En cada iteración calcula `gradiente_sce` con (U, V) de la iteración t y
     actualiza ambos simultáneamente: U ← U − eta·∇_U f, V ← V − eta·∇_V f
@@ -125,7 +125,7 @@ def entrenar_gd(
     motivo_corte = "max_iter"
     while n_iteraciones < max_iter:
         grad_U, grad_V = gradiente_sce(R, M, U, V)
-        # Informe 6: x(t+1) = x(t) - eta * grad f(x(t)), U y V con el
+        # x(t+1) = x(t) - eta * grad f(x(t)), U y V con el
         # gradiente de la iteración t
         U = U - eta * grad_U
         V = V - eta * grad_V

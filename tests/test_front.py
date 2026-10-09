@@ -179,7 +179,7 @@ def test_vector_de_usuario_con_resolver_factor_coincide_con_formula_2x2_del_js()
     r_usuario = np.array([5.0, np.nan, 4.0, 2.0, np.nan])
     m_usuario = ~np.isnan(r_usuario)
 
-    # Informe 5: paso de U de ALS con V fija, para una sola fila.
+    # Paso de U de ALS con V fija, para una sola fila.
     u_als = resolver_factor(r_usuario[None, :], m_usuario[None, :], V)[0]
     u_js = _formula_2x2_del_js(V[m_usuario], r_usuario[m_usuario])
 

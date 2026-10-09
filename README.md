@@ -3,10 +3,8 @@
 Demo del trabajo de promoción de Matemática 4 (Facultad de Informática, UNLP).
 El código implementa la factorización **R ≈ U·Vᵀ** de la matriz
 usuario–película de **MovieLens latest-small** con dos métodos: **ALS**
-(mínimos cuadrados alternados) y **descenso de gradiente**. Es la contraparte
-ejecutable de un informe escrito: cada fórmula implementada coincide con la del
-informe, y todo el álgebra está escrita con numpy, sin librerías que
-factoricen o recomienden.
+(mínimos cuadrados alternados) y **descenso de gradiente**. Todo el álgebra
+está escrita con numpy, sin librerías que factoricen o recomienden.
 
 ## En Google Colab
 
@@ -52,12 +50,10 @@ de cada uno está comentado ahí.
 
 | Rama | Qué contiene |
 |---|---|
-| `main` | El modelo del informe: k = 2, sin regularización. Incluye los experimentos de concentración de las recomendaciones (con usuarios simulados y reales, centrado y ordenamiento relativo): con k = 2 unas pocas películas acaparan los top-10. |
+| `main` | El modelo principal: k = 2, sin regularización. Incluye los experimentos de concentración de las recomendaciones (con usuarios simulados y reales, centrado y ordenamiento relativo): con k = 2 unas pocas películas acaparan los top-10. |
 | `experimento/regularizacion` | Prueba de la regularización λ para usar k > 2. Resultado: elimina las estimaciones absurdas fuera del rango, pero no reduce la concentración. Cerrada sin integrar. |
 | `experimento/sesgos` | Modelo con sesgos por usuario y por película, r̂ = μ + bᵢ + cⱼ + Uᵢ·Vⱼ. Ordenar por la parte personal (U·Vᵀ) reduce la concentración por debajo de los umbrales fijados de antemano. Incluye un recomendador HTML con sesgos (`python -m experimentos.front_sesgos`). |
 
-Las ramas experimentales quedan fuera del informe salvo aprobación de la
-cátedra.
 
 ## Datos
 

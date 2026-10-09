@@ -7,8 +7,8 @@ from src.gradiente import entrenar_gd
 from src.modelo import inicializar_factores
 
 
-def test_misma_semilla_misma_ejecucion_als(matriz_ejemplo_informe):
-    R, M = matriz_ejemplo_informe
+def test_misma_semilla_misma_ejecucion_als(matriz_ejemplo):
+    R, M = matriz_ejemplo
 
     U0_a, V0_a = inicializar_factores(m=4, n=5, k=2, escala=1.0, generador=np.random.default_rng(123))
     U0_b, V0_b = inicializar_factores(m=4, n=5, k=2, escala=1.0, generador=np.random.default_rng(123))
@@ -23,8 +23,8 @@ def test_misma_semilla_misma_ejecucion_als(matriz_ejemplo_informe):
     assert resultado_a.motivo_corte == resultado_b.motivo_corte
 
 
-def test_misma_semilla_misma_ejecucion_gd(matriz_ejemplo_informe):
-    R, M = matriz_ejemplo_informe
+def test_misma_semilla_misma_ejecucion_gd(matriz_ejemplo):
+    R, M = matriz_ejemplo
 
     U0_a, V0_a = inicializar_factores(m=4, n=5, k=2, escala=1.0, generador=np.random.default_rng(123))
     U0_b, V0_b = inicializar_factores(m=4, n=5, k=2, escala=1.0, generador=np.random.default_rng(123))

@@ -1,12 +1,12 @@
 """Experimento: concentración de las recomendaciones con k = 2, sin y con centrado.
 
-Respalda la tabla de la sección 8 del informe. No es parte de la demo ni del modelo: el centrado por el
+No es parte de la demo ni del modelo: el centrado por el
 promedio global μ vive solo acá, para comparar; el camino principal (`src/`)
 no centra.
 
 Simula usuarios nuevos como los del recomendador HTML: cada uno califica entre
 `--min-calificadas` y `--max-calificadas` de las películas más calificadas, se
-resuelve su vector u con V de ALS fija (`resolver_factor`, informe 5) y se
+resuelve su vector u con V de ALS fija (`resolver_factor`) y se
 cuenta qué películas entran en su top-N. Dos distribuciones de notas:
 "uniforme" (enteros de 1 a 5 equiprobables) y "real" (notas de `ratings.csv`
 redondeadas hacia arriba a enteros, como los botones de la página).
@@ -111,7 +111,7 @@ def simular(
         else:
             r[elegidas] = generador.choice(notas, size=cantidad)
 
-        # Informe 5: paso de U de ALS con V fija, para el usuario nuevo.
+        # Paso de U de ALS con V fija, para el usuario nuevo.
         u = resolver_factor((r - mu)[None, :], ~np.isnan(r)[None, :], V)[0]
         if k == 2:
             angulos.append(np.degrees(np.arctan2(u[1], u[0])))

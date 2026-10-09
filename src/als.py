@@ -1,4 +1,4 @@
-"""ALS: mínimos cuadrados alternados (informe 3.5 y 5)."""
+"""ALS: mínimos cuadrados alternados."""
 
 import logging
 import time
@@ -12,7 +12,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def resolver_factor(R: np.ndarray, M: np.ndarray, F: np.ndarray) -> np.ndarray:
-    """Resuelve por fila las ecuaciones normales de mínimos cuadrados (informe 3.5).
+    """Resuelve por fila las ecuaciones normales de mínimos cuadrados.
 
     Para cada fila i de R, toma las filas de F correspondientes a las
     columnas j con M[i, j] = True y resuelve con `np.linalg.solve` la fila i
@@ -33,7 +33,7 @@ def resolver_factor(R: np.ndarray, M: np.ndarray, F: np.ndarray) -> np.ndarray:
         F_obs = F[columnas_obs, :]
         r_obs = R[i, columnas_obs]
 
-        # Informe 3.5: ecuaciones normales de mínimos cuadrados por fila.
+        # Ecuaciones normales de mínimos cuadrados por fila.
         A = F_obs.T @ F_obs
         b = F_obs.T @ r_obs
         try:
@@ -52,7 +52,7 @@ def entrenar_als(
     epsilon: float,
     max_iter: int,
 ) -> ResultadoEntrenamiento:
-    """Ejecuta ALS alternando el paso de U y V (informe 3.5 y 5).
+    """Ejecuta ALS alternando el paso de U y V.
 
     Parte de U0, V0 y en cada iteración alterna `resolver_factor(R, M, V)` y
     `resolver_factor(R.T, M.T, U)`, usando `modelo.sce` para calcular f,
@@ -67,7 +67,7 @@ def entrenar_als(
     n_iteraciones = 0
     motivo_corte = "max_iter"
     while n_iteraciones < max_iter:
-        # Informe 3.5/5: alternar el paso de U y el paso de V (misma función,
+        # Alternar el paso de U y el paso de V (misma función,
         # llamada con R.T y M.T para V).
         U = resolver_factor(R, M, V)
         V = resolver_factor(R.T, M.T, U)

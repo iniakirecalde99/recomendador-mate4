@@ -1,4 +1,4 @@
-"""resolver_factor y entrenar_als (informe 3.5)."""
+"""resolver_factor y entrenar_als."""
 
 import logging
 
@@ -63,8 +63,8 @@ def test_resolver_factor_lanza_sistema_singular_si_hay_menos_datos_que_incognita
     assert exc_info.value.n_observados == 1
 
 
-def test_historial_de_sce_de_als_no_crece(matriz_ejemplo_informe, generador_fijo):
-    R, M = matriz_ejemplo_informe
+def test_historial_de_sce_de_als_no_crece(matriz_ejemplo, generador_fijo):
+    R, M = matriz_ejemplo
     U0, V0 = inicializar_factores(m=4, n=5, k=2, escala=1.0, generador=generador_fijo)
 
     resultado = entrenar_als(R, M, U0, V0, epsilon=1e-8, max_iter=100)
@@ -73,8 +73,8 @@ def test_historial_de_sce_de_als_no_crece(matriz_ejemplo_informe, generador_fijo
     assert np.all(np.diff(historial) <= 1e-9)  # no creciente, con margen numérico
 
 
-def test_als_ejemplo_4x5_no_lanza_singular_y_sce_decrece(matriz_ejemplo_informe, generador_fijo):
-    R, M = matriz_ejemplo_informe
+def test_als_ejemplo_4x5_no_lanza_singular_y_sce_decrece(matriz_ejemplo, generador_fijo):
+    R, M = matriz_ejemplo
     U0, V0 = inicializar_factores(m=4, n=5, k=2, escala=1.0, generador=generador_fijo)
 
     resultado = entrenar_als(R, M, U0, V0, epsilon=1e-8, max_iter=100)
@@ -83,19 +83,19 @@ def test_als_ejemplo_4x5_no_lanza_singular_y_sce_decrece(matriz_ejemplo_informe,
 
 
 @pytest.mark.skip(
-    reason="V0 del ejemplo de la sección 5 del informe todavía no está fijado"
+    reason="V0 del ejemplo 4×5 todavía no está fijado"
 )
-def test_als_ejemplo_4x5_primera_iteracion_coincide_con_informe():
-    """Compara la primera iteración de ALS contra la tabla del informe (sección 5).
+def test_als_ejemplo_4x5_primera_iteracion_coincide_con_tabla():
+    """Compara la primera iteración de ALS contra la tabla del ejemplo 4×5.
 
     Pendiente hasta fijar la V0 exacta que usa ese ejemplo.
     """
 
 
 def test_entrenar_als_loguea_debug_por_iteracion_e_info_cada_100_y_resumen(
-    matriz_ejemplo_informe, generador_fijo, caplog
+    matriz_ejemplo, generador_fijo, caplog
 ):
-    R, M = matriz_ejemplo_informe
+    R, M = matriz_ejemplo
     U0, V0 = inicializar_factores(m=4, n=5, k=2, escala=1.0, generador=generador_fijo)
 
     # epsilon=0.0 nunca corta por tolerancia (abs(diff) < 0.0 nunca es True):

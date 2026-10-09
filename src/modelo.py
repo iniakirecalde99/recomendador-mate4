@@ -6,12 +6,12 @@ import numpy as np
 
 
 def predecir(U: np.ndarray, V: np.ndarray) -> np.ndarray:
-    """Calcula la estimación R̂ = U·Vᵀ (informe sección 4)."""
+    """Calcula la estimación R̂ = U·Vᵀ."""
     return U @ V.T
 
 
 def sce(R: np.ndarray, M: np.ndarray, U: np.ndarray, V: np.ndarray) -> float:
-    """Suma de cuadrados del error sobre Ω, sin factor 1/2 (informe 3.5).
+    """Suma de cuadrados del error sobre Ω, sin factor 1/2.
 
     SCE(U,V) = Σ_{(i,j)∈Ω} (rᵢⱼ − uᵢ·vⱼ)². Solo suma sobre las posiciones
     donde M es True; los valores de R fuera de Ω (incluido NaN) no
@@ -24,7 +24,7 @@ def sce(R: np.ndarray, M: np.ndarray, U: np.ndarray, V: np.ndarray) -> float:
 def inicializar_factores(
     m: int, n: int, k: int, escala: float, generador: np.random.Generator
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Genera U₀ (m×k) y V₀ (n×k) uniformes en [0, escala) (informe sección 4).
+    """Genera U₀ (m×k) y V₀ (n×k) uniformes en [0, escala).
 
     Función compartida: quien orqueste la comparación (`demo.py`) la llama
     una sola vez y pasa el mismo par (o copias) a `entrenar_als` y
